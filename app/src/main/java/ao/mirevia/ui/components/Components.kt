@@ -1,8 +1,10 @@
 package ao.mirevia.ui.components
 
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -24,7 +26,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -47,15 +51,10 @@ fun Brand(modifier: Modifier = Modifier) {
         Icon(
             painterResource(R.drawable.ic_mirevia),
             null,
-            Modifier.size(34.dp),
+            Modifier.size(30.dp),
             tint = Color.Unspecified,
         )
-        Text(
-            "MIREVIA",
-            style = MaterialTheme.typography.titleLarge,
-            letterSpacing = 3.sp,
-            fontWeight = FontWeight.Bold,
-        )
+        Text("MIREVIA", fontSize = 18.sp, letterSpacing = 3.sp, fontWeight = FontWeight.Black)
     }
 }
 
@@ -67,13 +66,18 @@ fun ScreenHeader(
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
+        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (onBack != null)
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Voltar") }
-        Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.headlineMedium)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Box(Modifier.width(24.dp).height(3.dp).clip(CircleShape).background(Accent))
+            Text(
+                title,
+                Modifier.semantics { heading() },
+                style = MaterialTheme.typography.headlineMedium,
+            )
             if (subtitle != null)
                 Text(subtitle, color = Muted, style = MaterialTheme.typography.bodyMedium)
         }
@@ -82,18 +86,35 @@ fun ScreenHeader(
 }
 
 @Composable
+fun MetadataPill(text: String, modifier: Modifier = Modifier, highlighted: Boolean = false) {
+    Surface(
+        modifier,
+        color = if (highlighted) Accent.copy(alpha = 0.13f) else Color.White.copy(alpha = 0.07f),
+        contentColor = if (highlighted) Accent else MaterialTheme.colorScheme.onSurface,
+        shape = RoundedCornerShape(6.dp),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.07f)),
+    ) {
+        Text(
+            text,
+            Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+            style = MaterialTheme.typography.labelSmall,
+        )
+    }
+}
+
+@Composable
 fun DemoBanner(modifier: Modifier = Modifier) {
     Surface(
         modifier,
         color = MaterialTheme.colorScheme.primaryContainer,
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(14.dp),
     ) {
-        Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Icon(Icons.Outlined.Science, null, Modifier.size(20.dp), tint = Mint)
-            Column {
+        Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Icon(Icons.Outlined.Science, null, Modifier.size(20.dp), tint = Accent)
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     "Modo de demonstração",
-                    color = Mint,
+                    color = Accent,
                     style = MaterialTheme.typography.labelLarge,
                 )
                 Text(
@@ -115,16 +136,22 @@ fun StatusPanel(
     onAction: (() -> Unit)? = null,
 ) {
     Column(
-        modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 40.dp),
+        modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant) {
-            Icon(icon, null, Modifier.padding(18.dp).size(28.dp), tint = Mint)
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant,
+        ) {
+            Icon(icon, null, Modifier.padding(18.dp).size(28.dp), tint = Accent)
         }
         Text(title, style = MaterialTheme.typography.titleLarge)
         Text(message, style = MaterialTheme.typography.bodyMedium, color = Muted)
-        if (action != null && onAction != null) OutlinedButton(onClick = onAction) { Text(action) }
+        if (action != null && onAction != null)
+            OutlinedButton(onClick = onAction, modifier = Modifier.heightIn(min = 48.dp)) {
+                Text(action)
+            }
     }
 }
 
@@ -145,9 +172,8 @@ fun ErrorPanel(error: UiError, onRetry: () -> Unit, modifier: Modifier = Modifie
 
 @Composable
 fun Skeleton(modifier: Modifier = Modifier) {
-    val reduceMotion = LocalReduceMotion.current
     val alpha =
-        if (reduceMotion) 0.65f
+        if (LocalReduceMotion.current) 0.65f
         else {
             val transition = rememberInfiniteTransition(label = "Carregamento")
             val value by
@@ -172,7 +198,7 @@ fun CatalogSkeleton() {
         Modifier.padding(20.dp).semantics { contentDescription = "A carregar conteúdos" },
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        Skeleton(Modifier.fillMaxWidth().height(340.dp))
+        Skeleton(Modifier.fillMaxWidth().height(380.dp))
         Skeleton(Modifier.width(190.dp).height(24.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             repeat(3) { Skeleton(Modifier.weight(1f).height(190.dp)) }
@@ -209,45 +235,77 @@ fun MediaArtwork(media: MediaSummary, modifier: Modifier = Modifier, backdrop: B
         )
 }
 
+/** Episode stills use the same official-image policy as posters; no invented replacement photo. */
+@Composable
+fun MediaStill(url: String?, modifier: Modifier = Modifier) {
+    val allowed = allowedImageUrl(url)
+    @Composable
+    fun MissingStill() {
+        Box(
+            Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Outlined.Movie,
+                "Imagem não disponível",
+                tint = Muted,
+                modifier = Modifier.size(28.dp),
+            )
+        }
+    }
+    Box(modifier) {
+        if (allowed == null) MissingStill()
+        else
+            SubcomposeAsyncImage(
+                model = allowed,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+                loading = { Skeleton(Modifier.fillMaxSize()) },
+                error = { MissingStill() },
+            )
+    }
+}
+
 @Composable
 private fun AbstractArtwork(media: MediaSummary, modifier: Modifier) {
     val palettes =
         listOf(
-            listOf(Color(0xFF284D52), Color(0xFF12232D), Color(0xFF071017)),
-            listOf(Color(0xFF453764), Color(0xFF20233D), Color(0xFF10131E)),
-            listOf(Color(0xFF72534B), Color(0xFF382C38), Color(0xFF171822)),
-            listOf(Color(0xFF57614D), Color(0xFF1F3C3B), Color(0xFF0A2028)),
+            listOf(Color(0xFF47323D), Color(0xFF231D2D), Ink),
+            listOf(Color(0xFF2B3D53), Color(0xFF1C2332), Ink),
+            listOf(Color(0xFF5C4236), Color(0xFF2C202A), Ink),
+            listOf(Color(0xFF344C47), Color(0xFF192B30), Ink),
         )
-    val colors = palettes[(media.key.id - 1) % palettes.size]
-    Box(modifier.background(Brush.verticalGradient(colors))) {
+    Box(modifier.background(Brush.verticalGradient(palettes[(media.key.id - 1) % palettes.size]))) {
         Canvas(Modifier.fillMaxSize()) {
-            val center = Offset(size.width * 0.62f, size.height * 0.36f)
-            drawCircle(Color.White.copy(alpha = 0.06f), size.width * 0.66f, center)
-            drawCircle(Color.White.copy(alpha = 0.07f), size.width * 0.43f, center)
-            drawCircle(Color.White.copy(alpha = 0.11f), size.width * 0.23f, center)
-            drawLine(
-                Color.White.copy(alpha = 0.12f),
-                Offset(-size.width, size.height * 0.8f),
-                Offset(size.width * 2, size.height * 0.4f),
-                2f,
-            )
+            val center = Offset(size.width * 0.7f, size.height * 0.3f)
+            drawCircle(Color.White.copy(alpha = 0.04f), size.width * 0.7f, center)
+            drawCircle(Color.White.copy(alpha = 0.05f), size.width * 0.48f, center)
+            drawCircle(Color.White.copy(alpha = 0.06f), size.width * 0.26f, center)
         }
-        Column(Modifier.align(Alignment.BottomStart).padding(16.dp)) {
-            if (media.isDemo)
+        Column(
+            Modifier.align(Alignment.BottomStart).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            if (media.isDemo) {
                 Text(
                     "MIREVIA / DEMO",
                     fontSize = 9.sp,
                     letterSpacing = 2.sp,
                     color = Color.White.copy(alpha = 0.7f),
                 )
-            else Icon(Icons.Outlined.Movie, null, tint = Color.White.copy(alpha = 0.6f))
-            if (media.isDemo)
                 Text(
                     media.title,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Light,
-                    lineHeight = 23.sp,
+                    lineHeight = 24.sp,
                     color = Color.White,
+                )
+            } else
+                Icon(
+                    Icons.Outlined.Movie,
+                    "Imagem não disponível",
+                    tint = Color.White.copy(alpha = 0.65f),
                 )
         }
     }
@@ -257,33 +315,42 @@ private fun AbstractArtwork(media: MediaSummary, modifier: Modifier) {
 fun MediaCard(media: MediaSummary, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Column(
         modifier
-            .width(142.dp)
+            .width(144.dp)
             .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
+            .clickable(
+                role = Role.Button,
+                onClickLabel = "Ver detalhes de ${media.title}",
+                onClick = onClick,
+            )
             .padding(bottom = 6.dp)
     ) {
-        Box {
-            MediaArtwork(
-                media,
-                Modifier.fillMaxWidth().aspectRatio(2f / 3).clip(RoundedCornerShape(12.dp)),
+        Box(
+            Modifier.fillMaxWidth()
+                .aspectRatio(2f / 3)
+                .clip(RoundedCornerShape(12.dp))
+                .border(1.dp, Color.White.copy(alpha = 0.09f), RoundedCornerShape(12.dp))
+        ) {
+            MediaArtwork(media, Modifier.fillMaxSize())
+            Box(
+                Modifier.matchParentSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color.Transparent, Color.Transparent, Ink.copy(alpha = 0.7f))
+                        )
+                    )
             )
             if (media.rating != null)
                 Surface(
                     Modifier.align(Alignment.TopEnd).padding(7.dp),
-                    color = Ink.copy(alpha = 0.92f),
-                    shape = RoundedCornerShape(7.dp),
+                    color = Ink.copy(alpha = 0.85f),
+                    shape = RoundedCornerShape(6.dp),
                 ) {
                     Row(
-                        Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                        Modifier.padding(horizontal = 7.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(
-                            Icons.Outlined.Star,
-                            null,
-                            Modifier.size(12.dp),
-                            tint = Color(0xFFDFC58F),
-                        )
+                        Icon(Icons.Outlined.Star, null, Modifier.size(12.dp), tint = Gold)
                         Text(
                             String.format(Locale.ROOT, "%.1f", media.rating),
                             style = MaterialTheme.typography.labelSmall,
@@ -291,6 +358,12 @@ fun MediaCard(media: MediaSummary, onClick: () -> Unit, modifier: Modifier = Mod
                         )
                     }
                 }
+            Text(
+                if (media.isDemo) "DEMO" else media.key.type.label.uppercase(Locale.ROOT),
+                Modifier.align(Alignment.BottomStart).padding(10.dp),
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.White.copy(alpha = 0.9f),
+            )
         }
         Text(
             media.title,
@@ -300,9 +373,15 @@ fun MediaCard(media: MediaSummary, onClick: () -> Unit, modifier: Modifier = Mod
             overflow = TextOverflow.Ellipsis,
         )
         Text(
-            if (media.isDemo) "Demonstração"
-            else listOfNotNull(media.year?.toString(), media.key.type.label).joinToString(" · "),
-            Modifier.padding(start = 2.dp, top = 3.dp),
+            if (media.isDemo) "Título fictício"
+            else
+                listOfNotNull(
+                        media.year?.toString(),
+                        media.originalLanguage?.uppercase(Locale.ROOT),
+                    )
+                    .joinToString(" · ")
+                    .ifBlank { "Informação não disponível" },
+            Modifier.padding(start = 2.dp, top = 4.dp),
             style = MaterialTheme.typography.bodySmall,
             color = Muted,
         )
@@ -322,19 +401,23 @@ fun MediaRow(
             Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
+            Text(
+                title,
+                Modifier.weight(1f).semantics { heading() },
+                style = MaterialTheme.typography.titleLarge,
+            )
             if (onSeeAll != null)
                 IconButton(onClick = onSeeAll) {
                     Icon(
                         Icons.AutoMirrored.Outlined.ArrowForward,
-                        "Ver todos: $title",
+                        "Explorar catálogo: $title",
                         tint = Muted,
                     )
                 }
         }
         LazyRow(
             contentPadding = PaddingValues(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             items(media, key = { it.key.storageKey }) { item ->
                 MediaCard(item, { onDetails(item.key) })
@@ -356,6 +439,7 @@ fun <T> ChoiceMenu(
         OutlinedButton(
             onClick = { expanded = true },
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier.heightIn(min = 48.dp),
         ) {
             Text("$label: ${choices.find { it.first == selected }?.second ?: "Todos"}")
             Icon(Icons.Outlined.ExpandMore, null, Modifier.size(18.dp))

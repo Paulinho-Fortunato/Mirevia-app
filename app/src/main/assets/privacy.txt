@@ -24,8 +24,16 @@ A Mirevia não controla a disponibilidade, os eventuais anúncios, as práticas 
 5. Ligações externas
 Trailers oficiais podem abrir YouTube ou Vimeo após confirmação. Quando autorizado nas definições, pode ser aberta a página oficial de demonstração do EmbedMovies no navegador, onde o próprio serviço utiliza iframe. O navegador tem políticas de dados e armazenamento independentes da Mirevia. Não são abertos links directos de streams.
 
+A partilha é opcional e usa a folha Android: podes enviar o título/página TMDB ou um link de incorporação MyEmbed validado. O link não é um ficheiro de vídeo e pode exigir integração por iframe na aplicação destinatária. Não são partilhados vídeos, cookies, tokens ou a biblioteca. A app destinatária trata o texto segundo a sua política.
+
 6. Segurança e retenção
 A aplicação exige HTTPS, usa a confiança TLS do sistema, não grava tokens ou cookies em registos e não pede permissões de ficheiros, localização, câmara ou microfone. Metadados e imagens podem permanecer temporariamente em cache, limitada pela aplicação. A opção de apagar a biblioteca não apaga as caches de metadados/imagens; podes limpar todos os dados da aplicação nas definições do Android.
+
+Se o iframe pedir uma origem não autorizada, a sessão é interrompida. O diagnóstico retém apenas motivo, domínio, esquema e porta, nunca o URL bruto, caminho, query, fragmento ou credenciais. Fica em memória e não é guardado no histórico, enviado automaticamente ou usado para autorizar o domínio. Só é copiado/partilhado por acção explícita.
+
+O ecrã de segurança lê apenas a identidade pública do próprio pacote instalado: versão, permissões e fingerprints dos certificados de assinatura. Não lê chaves privadas, não enumera outras apps e não envia dados a serviços de análise. A assinatura não é uma certificação de segurança. Mantém o Google Play Protect activo e investiga qualquer alerta antes de continuar a usar a app.
+
+Um APK pessoal pode conter um token TMDB recuperável. O acesso ao ficheiro permite extrair essa credencial; não o envies a serviços públicos de análise sem avaliar esse risco.
 
 7. Controlo dos teus dados
 Podes remover favoritos, entradas da lista e registos do histórico, limpar pesquisas e apagar os dados locais na aplicação. Para remover também preferências e caches, utiliza as definições do Android ou desinstala a Mirevia. Não existem dados de conta remota para apagar.

@@ -77,3 +77,18 @@ Room não guarda cookies ou credenciais. Histórico limitado a 300 registos, pes
 - Rever o backend, atribuição TMDB e os documentos legais; acrescentar identificação/contacto do responsável.
 - Testar recusa/revogação de consentimento, ausência de WebView, offline, TLS inválido, segundo plano, libertação de memória e acessibilidade.
 - Um APK pessoal com token embutido implica aceitar que esse token é recuperável. Não o partilhar publicamente se a credencial tiver de permanecer privada; nesse caso, usar um backend.
+
+## Diagnóstico de origem, partilha e identidade (0.2.0)
+
+- A UI recebe `PlaybackBlock`, não o URL bruto do recurso. O objecto só retém motivo, hostname, esquema e porta; caminhos, queries, fragmentos e credenciais são descartados antes de chegar ao estado do player. Não se registam títulos/histórico no diagnóstico. Não há persistência nem envio automático; copiar/partilhar depende do utilizador.
+- Observar/copiar um domínio **não** o aprova. A allowlist de produção continua a ser apenas `myembed.biz`; nem subdomínios se tornam autorizados. O novo diagnóstico não resolve por si só a falta de inventário de origens do fornecedor.
+- A partilha usa `ACTION_SEND`, `text/plain`, apenas título/página TMDB ou link oficial de iframe sem query. Não há `EXTRA_STREAM`, URI de ficheiro, concessão de acesso, exportação de biblioteca ou permissão nova. O destinatário tem a sua política de dados.
+- A folha de segurança lê só PackageInfo da própria aplicação, permissões e certificados públicos; não enumera apps nem lê a chave de assinatura. As APIs de assinatura API 28+ estão guardadas e há fallback API 24. A leitura é feita em IO. O fingerprint do certificado **não é o hash do APK** e não certifica segurança.
+
+### Alerta Google Play Protect reportado
+
+O utilizador identificou Google Play Protect, mas não forneceu a captura integral nem o artefacto/revisão analisados. Não se pode concluir falso positivo ou infecção só a partir da descrição. A instalação reportada da versão anterior não é prova de segurança. O manifesto próprio mantém apenas Internet e estado da rede; poucas permissões também não garantem ausência de comportamento prejudicial, especialmente com conteúdo web de terceiros.
+
+Não foi desligado Play Protect, Safe Browsing, TLS ou outra protecção. Não se altera nome/pacote/certificado para fugir à análise. A versão 0.2.0 identifica esta revisão funcional, não uma tentativa de contornar detecção.
+
+O procedimento de recolha do aviso, comparação do APK/certificado e eventual recurso oficial está em [player-troubleshooting.md](player-troubleshooting.md). O APK debug contém um token TMDB recuperável: considerar a exposição e rotação antes de o enviar para análise externa, sobretudo scanners públicos. Nenhum APK foi enviado a terceiros nesta sessão.

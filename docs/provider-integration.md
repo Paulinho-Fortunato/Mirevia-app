@@ -64,7 +64,7 @@ O sinal `onPageFinished` refere-se ao documento de incorporação, não a um ví
 
 ## Histórico e retoma
 
-“Continuar a ver” apresenta o último player/episódio aberto, sem percentagens nem minutos inventados. Não há integração documentada que permita ler posição, duração, legendas ou fim do vídeo. Campos de progresso ficam nulos; marcas de visto são manuais. A limpeza da sessão WebView pode impedir que o próprio fornecedor retenha estado; não é prometida retoma entre sessões.
+“Players recentes” apresenta o último player/episódio aberto, sem percentagens nem minutos inventados. Não há integração documentada que permita ler posição, duração, legendas ou fim do vídeo. Campos de progresso ficam nulos; marcas de visto são manuais. A limpeza da sessão WebView pode impedir que o próprio fornecedor retenha estado; não é prometida retoma entre sessões.
 
 Se o fornecedor publicar uma API oficial de eventos, esta deverá ser revista quanto a origem, consentimento e segurança antes de se acrescentar um adaptador. Não usar mensagens arbitrárias, bridges nativas ou leitura de DOM para simular essa API.
 
@@ -87,3 +87,13 @@ Antes de usar regularmente, pedir ao proprietário do serviço:
 - Confirmação de especiais/temporada 0 e de PiP na plataforma Android.
 
 Consultar também [security.md](security.md). Não afirmar suporte técnico ou disponibilidade de uma obra apenas porque a URL foi construída.
+
+## Diagnóstico e partilha (0.2.0)
+
+O proprietário reportou instalação bem-sucedida da versão anterior, mas uma sessão interrompida pela política de origem. Confirmou que não aparecia o domínio. Isto não prova um erro de TMDB ou de formato do iframe: as quatro rotas e permissões HTML foram reconferidas na documentação oficial. Os exemplos de filme 969681/tt22084616 e série 30984/1/1 são cobertos pelos testes do wrapper, sem pedidos ao fornecedor.
+
+`PlaybackBlock` transforma o pedido numa estrutura sem URL bruto: motivo, host, esquema e porta. A UI mostra o domínio bloqueado e permite cópia/partilha explícita do diagnóstico local. Não guarda paths, queries, fragmentos, credenciais, títulos ou cookies. Não há telemetria, descoberta de streams, auto-aprovação ou nova lista de hosts. A sessão bloqueada é interrompida por inteiro.
+
+A partilha do título envia a página TMDB. A opção MyEmbed envia apenas o `src` validado e um aviso de utilização exclusivamente em iframe; o episódio conserva os seus números. Partilhar texto não significa abrir o `src` como reprodução top-level ou enviar um ficheiro. A disponibilidade continua por confirmar.
+
+O wrapper é dimensionado a 100% da superfície nativa e conserva `scrolling="no"`, `allow="autoplay; encrypted-media; picture-in-picture; fullscreen"` e `allowfullscreen`. A Activity já não força paisagem. São melhorias de layout/observabilidade, não comprovação de fullscreen/PiP/reprodução em todos os motores móveis. Ver o [guia de diagnóstico e Play Protect](player-troubleshooting.md).

@@ -1,5 +1,6 @@
 package ao.mirevia.ui.details
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -10,30 +11,34 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ao.mirevia.core.model.*
+import ao.mirevia.core.playback.EmbedUrlPolicy
 import ao.mirevia.ui.components.*
 import ao.mirevia.ui.library.LibraryViewModel
 import ao.mirevia.ui.theme.*
-import coil3.compose.AsyncImage
 import java.util.Locale
 
+@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun DetailsScreen(
     viewModel: DetailsViewModel,
     library: LibraryViewModel,
+    policy: EmbedUrlPolicy,
     onBack: () -> Unit,
     onDetails: (MediaKey) -> Unit,
     onPerson: (Int) -> Unit,
@@ -47,6 +52,8 @@ fun DetailsScreen(
     val context = LocalContext.current
     var trailer by remember { mutableStateOf<OfficialTrailer?>(null) }
     var externalError by remember { mutableStateOf(false) }
+    var seasonPicker by rememberSaveable { mutableStateOf(false) }
+    var shareTarget by remember { mutableStateOf<ShareTarget?>(null) }
     when (val current = state) {
         LoadState.Loading ->
             Column {
@@ -62,13 +69,23 @@ fun DetailsScreen(
             val details = current.value.details
             val media = details.media
             val entry = entries.find { it.media.key == media.key }
+            val panels =
+                if (media.key.type == MediaType.TV) listOf("Episódios", "Sobre", "Mais títulos")
+                else listOf("Sobre", "Mais títulos")
+            var panel by rememberSaveable(media.key.storageKey) { mutableStateOf(panels.first()) }
             LazyColumn(
-                contentPadding = PaddingValues(bottom = 30.dp),
-                verticalArrangement = Arrangement.spacedBy(26.dp),
+                contentPadding = PaddingValues(bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
             ) {
-                item { DetailHero(media, onBack) }
+                item(key = "hero") {
+                    DetailHero(
+                        media,
+                        onBack,
+                        onShare = { shareTarget = ShareTarget(media, current.value.source) },
+                    )
+                }
                 if (media.isDemo) item { DemoBanner(Modifier.padding(horizontal = 20.dp)) }
-                item {
+                item(key = "summary") {
                     Column(
                         Modifier.padding(horizontal = 20.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -76,75 +93,64 @@ fun DetailsScreen(
                         Text(media.title, style = MaterialTheme.typography.headlineLarge)
                         media.originalTitle
                             ?.takeIf { it.isNotBlank() && it != media.title }
-                            ?.let { Text(it, color = Muted) }
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            media.rating?.let { rating ->
-                                Icon(
-                                    Icons.Outlined.Star,
-                                    null,
-                                    Modifier.size(18.dp),
-                                    tint = Color(0xFFDFC58F),
-                                )
-                                Text(
-                                    "${String.format(Locale.ROOT, "%.1f", rating)} / 10",
-                                    style = MaterialTheme.typography.labelLarge,
-                                )
+                            ?.let {
+                                Text(it, color = Muted, style = MaterialTheme.typography.bodyMedium)
                             }
-                            Text(
-                                listOfNotNull(
-                                        media.year?.toString(),
-                                        media.key.type.label,
-                                        details.runtimeMinutes?.let { "$it min" },
-                                    )
-                                    .joinToString(" · "),
-                                color = Muted,
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            MetadataPill(media.key.type.label, highlighted = true)
+                            media.year?.let { MetadataPill(it.toString()) }
+                            details.runtimeMinutes?.let { MetadataPill("$it min") }
+                            media.rating?.let {
+                                MetadataPill("TMDB ${String.format(Locale.ROOT, "%.1f", it)} / 10")
+                            }
                         }
                         if (details.genres.isNotEmpty())
                             Text(
                                 details.genres.joinToString(" · ") { it.name },
-                                color = Mint,
+                                color = Muted,
                                 style = MaterialTheme.typography.bodyMedium,
                             )
+                        Text(
+                            media.overview ?: "Informação não disponível",
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color(0xFFD4D0DA),
+                        )
                         Button(
                             onClick = { onPlay(media.key, null, null) },
                             enabled = current.value.source != null,
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
                             shape = RoundedCornerShape(12.dp),
                         ) {
                             Icon(Icons.Outlined.PlayArrow, null)
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                if (current.value.source != null) "Reproduzir"
-                                else "Reprodução indisponível"
+                                if (current.value.source == null) "Reprodução indisponível"
+                                else if (media.key.type == MediaType.TV) "Abrir player da série"
+                                else "Abrir player"
                             )
                         }
-                        if (current.value.source == null)
-                            Text(
-                                if (media.isDemo)
-                                    "Os títulos de demonstração não têm fonte de reprodução."
-                                else
-                                    "Não foi possível encontrar uma fonte de reprodução para este conteúdo.",
-                                color = Muted,
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        else
-                            Text(
-                                "O endereço do iframe é válido. A disponibilidade do conteúdo só pode ser confirmada pelo player externo.",
-                                color = Muted,
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        Row(
+                        Text(
+                            if (media.isDemo)
+                                "Os títulos de demonstração não têm fonte de reprodução."
+                            else if (current.value.source == null)
+                                "Não foi possível encontrar uma fonte de reprodução para este conteúdo."
+                            else
+                                "Iframe validado, disponibilidade a confirmar pelo fornecedor. ${if (media.key.type == MediaType.TV) "Ou escolhe um episódio abaixo." else "Os controlos pertencem ao player externo."}",
+                            color = Muted,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             OutlinedButton(
                                 onClick = { library.toggle(media, LibraryFlag.WATCHLIST) },
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.heightIn(min = 48.dp),
                             ) {
                                 Icon(
                                     if (entry?.watchlisted == true) Icons.Outlined.Check
@@ -152,7 +158,7 @@ fun DetailsScreen(
                                     null,
                                     Modifier.size(18.dp),
                                 )
-                                Spacer(Modifier.width(6.dp))
+                                Spacer(Modifier.width(8.dp))
                                 Text(
                                     if (entry?.watchlisted == true) "Na minha lista"
                                     else "Minha lista"
@@ -161,6 +167,7 @@ fun DetailsScreen(
                             FilledTonalIconToggleButton(
                                 checked = entry?.favorite == true,
                                 onCheckedChange = { library.toggle(media, LibraryFlag.FAVORITE) },
+                                modifier = Modifier.size(48.dp),
                             ) {
                                 Icon(
                                     if (entry?.favorite == true) Icons.Outlined.Favorite
@@ -169,232 +176,280 @@ fun DetailsScreen(
                                     else "Adicionar aos favoritos",
                                 )
                             }
+                            FilterChip(
+                                selected = entry?.watched == true,
+                                onClick = { library.toggle(media, LibraryFlag.WATCHED) },
+                                label = {
+                                    Text(if (entry?.watched == true) "Visto" else "Marcar visto")
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Outlined.CheckCircleOutline,
+                                        null,
+                                        Modifier.size(18.dp),
+                                    )
+                                },
+                                modifier = Modifier.heightIn(min = 48.dp),
+                            )
                         }
-                        FilterChip(
-                            entry?.watched == true,
-                            { library.toggle(media, LibraryFlag.WATCHED) },
-                            label = {
-                                Text(
-                                    if (entry?.watched == true) "Marcado como visto"
-                                    else "Marcar como visto"
-                                )
-                            },
-                            leadingIcon = {
-                                Icon(Icons.Outlined.CheckCircleOutline, null, Modifier.size(18.dp))
-                            },
-                        )
                     }
                 }
-                item {
-                    Column(
-                        Modifier.padding(horizontal = 20.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                stickyHeader(key = "detail-tabs") {
+                    TabRow(
+                        selectedTabIndex = panels.indexOf(panel).coerceAtLeast(0),
+                        containerColor = Ink,
+                        contentColor = Accent,
                     ) {
-                        Text("A história", style = MaterialTheme.typography.titleLarge)
-                        Text(
-                            media.overview ?: "Informação não disponível",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = Color(0xFFCDD3D7),
-                        )
-                        MetadataLine("Título original", media.originalTitle)
-                        MetadataLine("Ano", media.year?.toString())
-                        MetadataLine("Data de lançamento", media.releaseDate)
-                        MetadataLine(
-                            "Avaliação TMDB",
-                            media.rating?.let { String.format(Locale.ROOT, "%.1f / 10", it) },
-                        )
-                        MetadataLine(
-                            "Géneros",
-                            details.genres.joinToString(", ") { it.name }.ifBlank { null },
-                        )
-                        MetadataLine("Duração", details.runtimeMinutes?.let { "$it minutos" })
-                        MetadataLine(
-                            "País de origem",
-                            details.countries.joinToString(", ").ifBlank { null },
-                        )
-                        MetadataLine(
-                            "Realização",
-                            details.directors.joinToString(", ") { it.name }.ifBlank { null },
-                        )
-                        if (media.key.type == MediaType.TV)
-                            MetadataLine(
-                                "Criação",
-                                details.creators.joinToString(", ") { it.name }.ifBlank { null },
+                        panels.forEach { name ->
+                            Tab(
+                                selected = panel == name,
+                                onClick = { panel = name },
+                                text = { Text(name) },
+                                modifier = Modifier.heightIn(min = 52.dp),
                             )
-                        MetadataLine("TMDB", if (media.isDemo) null else media.key.id.toString())
-                        MetadataLine("IMDb", details.imdbId)
-                        if (details.trailer != null)
-                            OutlinedButton(onClick = { trailer = details.trailer }) {
-                                Icon(Icons.Outlined.OpenInNew, null, Modifier.size(18.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text("Ver trailer oficial")
-                            }
-                        else
-                            Text(
-                                "Trailer oficial: Informação não disponível",
-                                color = Muted,
-                                style = MaterialTheme.typography.bodySmall,
-                            )
+                        }
                     }
                 }
-                if (media.key.type == MediaType.TV) {
-                    item {
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text(
-                                "Temporadas e episódios",
+                when (panel) {
+                    "Episódios" -> {
+                        item(key = "seasons") {
+                            Column(
                                 Modifier.padding(horizontal = 20.dp),
-                                style = MaterialTheme.typography.titleLarge,
-                            )
-                            if (details.seasons.isEmpty())
-                                Text(
-                                    "Informação não disponível",
-                                    Modifier.padding(horizontal = 20.dp),
-                                    color = Muted,
-                                )
-                            else
-                                LazyRow(
-                                    contentPadding = PaddingValues(horizontal = 20.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                ) {
-                                    items(details.seasons, key = { it.number }) { season ->
-                                        FilterChip(
-                                            selectedSeason == season.number,
-                                            { viewModel.selectSeason(season.number) },
-                                            label = {
-                                                Text(
-                                                    if (season.number == 0) "Especiais"
-                                                    else "Temporada ${season.number}"
-                                                )
-                                            },
-                                        )
-                                    }
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                SeasonSelector(details.seasons, selectedSeason) {
+                                    seasonPicker = true
                                 }
-                            if (selectedSeason == null && details.seasons.isNotEmpty())
+                                if (details.seasons.isEmpty())
+                                    Text("Temporadas: Informação não disponível", color = Muted)
+                                if (selectedSeason == 0)
+                                    Text(
+                                        "A reprodução de especiais não está documentada pelo fornecedor. Os metadados continuam disponíveis.",
+                                        color = Muted,
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
                                 Text(
-                                    "Selecciona uma temporada para carregar os episódios.",
-                                    Modifier.padding(horizontal = 20.dp),
-                                    color = Muted,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
-                            if (selectedSeason == 0)
-                                Text(
-                                    "A reprodução de especiais não está documentada pelo fornecedor. Os metadados continuam disponíveis.",
-                                    Modifier.padding(horizontal = 20.dp),
+                                    "Marca os episódios como vistos manualmente. Não é medido o progresso do iframe.",
                                     color = Muted,
                                     style = MaterialTheme.typography.bodySmall,
                                 )
+                            }
                         }
-                    }
-                    when (val episodeState = episodes) {
-                        LoadState.Loading ->
-                            item {
-                                Skeleton(
-                                    Modifier.fillMaxWidth()
-                                        .padding(horizontal = 20.dp)
-                                        .height(160.dp)
-                                )
-                            }
-                        is LoadState.Error ->
-                            item {
-                                ErrorPanel(
-                                    episodeState.error,
-                                    { selectedSeason?.let(viewModel::selectSeason) },
-                                )
-                            }
-                        is LoadState.Data -> {
-                            if (episodeState.value.isEmpty())
-                                item {
-                                    Text(
-                                        "Não foram encontrados episódios para esta temporada.",
-                                        Modifier.padding(horizontal = 20.dp),
-                                        color = Muted,
+                        when (val episodeState = episodes) {
+                            LoadState.Loading ->
+                                items(2) {
+                                    Skeleton(
+                                        Modifier.fillMaxWidth()
+                                            .padding(horizontal = 20.dp)
+                                            .height(190.dp)
                                     )
                                 }
-                            items(episodeState.value, key = { it.episode.id }) { item ->
-                                val watched =
-                                    episodeWatches.any {
-                                        it.season == item.episode.season &&
-                                            it.episode == item.episode.number
-                                    }
-                                EpisodeCard(
-                                    item,
-                                    watched,
-                                    { onPlay(media.key, item.episode.season, item.episode.number) },
-                                    {
-                                        library.markEpisode(
-                                            media.key,
-                                            item.episode.season,
-                                            item.episode.number,
-                                            !watched,
+                            is LoadState.Error ->
+                                item { ErrorPanel(episodeState.error, viewModel::retrySeason) }
+                            is LoadState.Data -> {
+                                if (episodeState.value.isEmpty())
+                                    item {
+                                        StatusPanel(
+                                            "Ainda sem episódios",
+                                            "A TMDB não devolveu episódios para esta temporada.",
                                         )
+                                    }
+                                items(episodeState.value, key = { "episode-${it.episode.id}" }) {
+                                    item ->
+                                    val watched =
+                                        episodeWatches.any {
+                                            it.season == item.episode.season &&
+                                                it.episode == item.episode.number
+                                        }
+                                    EpisodeCard(
+                                        item = item,
+                                        watched = watched,
+                                        onPlay = {
+                                            onPlay(
+                                                media.key,
+                                                item.episode.season,
+                                                item.episode.number,
+                                            )
+                                        },
+                                        onWatched = {
+                                            library.markEpisode(
+                                                media.key,
+                                                item.episode.season,
+                                                item.episode.number,
+                                                !watched,
+                                            )
+                                        },
+                                        onShare = { shareTarget = ShareTarget(media, item.source) },
+                                        modifier = Modifier.padding(horizontal = 20.dp),
+                                    )
+                                }
+                            }
+                            null -> Unit
+                        }
+                    }
+                    "Sobre" -> {
+                        item {
+                            Column(
+                                Modifier.padding(horizontal = 20.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp),
+                            ) {
+                                Text("A história", style = MaterialTheme.typography.titleLarge)
+                                Text(
+                                    media.overview ?: "Informação não disponível",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = Color(0xFFD4D0DA),
+                                )
+                                if (details.trailer != null)
+                                    OutlinedButton(
+                                        onClick = { trailer = details.trailer },
+                                        modifier = Modifier.heightIn(min = 48.dp),
+                                    ) {
+                                        Icon(
+                                            Icons.AutoMirrored.Outlined.OpenInNew,
+                                            null,
+                                            Modifier.size(18.dp),
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("Trailer oficial")
+                                    }
+                                else
+                                    Text(
+                                        "Trailer oficial: Informação não disponível",
+                                        color = Muted,
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                Text("Ficha do título", style = MaterialTheme.typography.titleLarge)
+                                MetadataLine("Título original", media.originalTitle)
+                                MetadataLine("Data de lançamento", media.releaseDate)
+                                MetadataLine(
+                                    "Avaliação TMDB",
+                                    media.rating?.let {
+                                        String.format(Locale.ROOT, "%.1f / 10", it)
                                     },
                                 )
+                                MetadataLine(
+                                    "Géneros",
+                                    details.genres.joinToString(", ") { it.name }.ifBlank { null },
+                                )
+                                MetadataLine(
+                                    "Duração",
+                                    details.runtimeMinutes?.let { "$it minutos" },
+                                )
+                                MetadataLine(
+                                    "País de origem",
+                                    details.countries.joinToString(", ").ifBlank { null },
+                                )
+                                MetadataLine(
+                                    "Realização",
+                                    details.directors
+                                        .joinToString(", ") { it.name }
+                                        .ifBlank { null },
+                                )
+                                if (media.key.type == MediaType.TV)
+                                    MetadataLine(
+                                        "Criação",
+                                        details.creators
+                                            .joinToString(", ") { it.name }
+                                            .ifBlank { null },
+                                    )
+                                MetadataLine(
+                                    "TMDB",
+                                    if (media.isDemo) null else media.key.id.toString(),
+                                )
+                                MetadataLine("IMDb", details.imdbId)
                             }
                         }
-                        null -> Unit
+                        if (details.cast.isNotEmpty())
+                            item {
+                                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                    Text(
+                                        "Elenco",
+                                        Modifier.padding(horizontal = 20.dp),
+                                        style = MaterialTheme.typography.titleLarge,
+                                    )
+                                    LazyRow(
+                                        contentPadding = PaddingValues(horizontal = 20.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                                    ) {
+                                        items(details.cast.take(24), key = { it.id }) { person ->
+                                            PersonCard(person) { onPerson(person.id) }
+                                        }
+                                    }
+                                }
+                            }
+                        else
+                            item {
+                                Text(
+                                    "Elenco: Informação não disponível",
+                                    Modifier.padding(horizontal = 20.dp),
+                                    color = Muted,
+                                )
+                            }
+                        if (details.directors.isNotEmpty() || details.creators.isNotEmpty())
+                            item {
+                                Column(
+                                    Modifier.padding(horizontal = 20.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Text(
+                                        "Por detrás da história",
+                                        style = MaterialTheme.typography.titleLarge,
+                                    )
+                                    (details.directors + details.creators)
+                                        .distinctBy { it.id }
+                                        .forEach { person ->
+                                            TextButton(
+                                                onClick = { onPerson(person.id) },
+                                                modifier = Modifier.heightIn(min = 48.dp),
+                                            ) {
+                                                Text(person.name)
+                                                Spacer(Modifier.width(8.dp))
+                                                Icon(
+                                                    Icons.AutoMirrored.Outlined.ArrowForward,
+                                                    null,
+                                                    Modifier.size(18.dp),
+                                                )
+                                            }
+                                        }
+                                }
+                            }
+                    }
+                    "Mais títulos" -> {
+                        if (details.recommendations.isNotEmpty())
+                            item {
+                                MediaRow(
+                                    "Recomendações da TMDB",
+                                    details.recommendations,
+                                    onDetails,
+                                )
+                            }
+                        if (details.similar.isNotEmpty())
+                            item {
+                                MediaRow(
+                                    if (media.isDemo) "Outros exemplos fictícios"
+                                    else "Na mesma atmosfera",
+                                    details.similar,
+                                    onDetails,
+                                )
+                            }
+                        if (details.recommendations.isEmpty() && details.similar.isEmpty())
+                            item {
+                                StatusPanel(
+                                    "Sem recomendações",
+                                    "Não há informação disponível para este título.",
+                                )
+                            }
                     }
                 }
-                if (details.cast.isNotEmpty())
-                    item {
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text(
-                                "Elenco",
-                                Modifier.padding(horizontal = 20.dp),
-                                style = MaterialTheme.typography.titleLarge,
-                            )
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = 20.dp),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            ) {
-                                items(details.cast.take(24), key = { it.id }) { person ->
-                                    PersonCard(person) { onPerson(person.id) }
-                                }
-                            }
-                        }
-                    }
-                else
-                    item {
-                        Text(
-                            "Elenco: Informação não disponível",
-                            Modifier.padding(horizontal = 20.dp),
-                            color = Muted,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                if (details.directors.isNotEmpty() || details.creators.isNotEmpty())
-                    item {
-                        val people = (details.directors + details.creators).distinctBy { it.id }
-                        Column(
-                            Modifier.padding(horizontal = 20.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Text(
-                                "Por detrás da história",
-                                style = MaterialTheme.typography.titleLarge,
-                            )
-                            people.forEach { person ->
-                                TextButton(onClick = { onPerson(person.id) }) {
-                                    Text(person.name)
-                                    Spacer(Modifier.width(8.dp))
-                                    Icon(Icons.Outlined.OpenInNew, null, Modifier.size(16.dp))
-                                }
-                            }
-                        }
-                    }
-                if (details.recommendations.isNotEmpty())
-                    item { MediaRow("Recomendações da TMDB", details.recommendations, onDetails) }
-                if (details.similar.isNotEmpty())
-                    item {
-                        MediaRow(
-                            if (media.isDemo) "Outros exemplos fictícios"
-                            else "Conteúdos semelhantes",
-                            details.similar,
-                            onDetails,
-                        )
-                    }
             }
+            if (seasonPicker)
+                SeasonPickerSheet(details.seasons, selectedSeason, viewModel::selectSeason) {
+                    seasonPicker = false
+                }
         }
     }
+    shareTarget?.let { target -> MediaShareSheet(target, policy) { shareTarget = null } }
     trailer?.let { video ->
         AlertDialog(
             onDismissRequest = { trailer = null },
@@ -434,63 +489,97 @@ fun DetailsScreen(
 }
 
 @Composable
-private fun DetailHero(media: MediaSummary, onBack: () -> Unit) {
-    Box(Modifier.fillMaxWidth().height(280.dp)) {
+private fun DetailHero(media: MediaSummary, onBack: () -> Unit, onShare: () -> Unit) {
+    Box(Modifier.fillMaxWidth().height(310.dp)) {
         MediaArtwork(media, Modifier.fillMaxSize(), backdrop = true)
         Box(
             Modifier.fillMaxSize()
                 .background(
-                    Brush.verticalGradient(listOf(Ink.copy(alpha = 0.2f), Color.Transparent, Ink))
+                    Brush.verticalGradient(listOf(Ink.copy(alpha = 0.25f), Color.Transparent, Ink))
                 )
         )
-        FilledIconButton(
-            onClick = onBack,
-            modifier = Modifier.align(Alignment.TopStart).padding(16.dp),
-            colors =
-                IconButtonDefaults.filledIconButtonColors(containerColor = Ink.copy(alpha = 0.7f)),
+        Row(
+            Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Voltar")
+            FilledIconButton(
+                onClick = onBack,
+                colors =
+                    IconButtonDefaults.filledIconButtonColors(
+                        containerColor = Ink.copy(alpha = 0.7f)
+                    ),
+                modifier = Modifier.size(48.dp),
+            ) {
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Voltar")
+            }
+            FilledIconButton(
+                onClick = onShare,
+                enabled = !media.isDemo,
+                colors =
+                    IconButtonDefaults.filledIconButtonColors(
+                        containerColor = Ink.copy(alpha = 0.7f)
+                    ),
+                modifier = Modifier.size(48.dp),
+            ) {
+                Icon(Icons.Outlined.Share, "Partilhar título ou link MyEmbed")
+            }
         }
-        MediaArtwork(
-            media,
-            Modifier.align(Alignment.BottomStart)
-                .padding(start = 20.dp)
-                .width(104.dp)
-                .height(156.dp)
-                .clip(RoundedCornerShape(12.dp)),
-        )
+        Row(
+            Modifier.align(Alignment.BottomStart).padding(horizontal = 20.dp),
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            MediaArtwork(
+                media,
+                Modifier.width(96.dp).height(144.dp).clip(RoundedCornerShape(12.dp)),
+            )
+            Column(
+                Modifier.padding(bottom = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    "MIREVIA / DESCOBRIR",
+                    color = Accent,
+                    style = MaterialTheme.typography.labelSmall,
+                )
+                MetadataPill(if (media.isDemo) "Demonstração" else "METADADOS TMDB")
+            }
+        }
     }
 }
 
 @Composable
 private fun MetadataLine(label: String, value: String?) {
-    Text(
-        "$label: ${value ?: "Informação não disponível"}",
-        color = Muted,
-        style = MaterialTheme.typography.bodyMedium,
-    )
+    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Text(
+            label.uppercase(Locale.ROOT),
+            color = Muted,
+            style = MaterialTheme.typography.labelSmall,
+        )
+        Text(value ?: "Informação não disponível", style = MaterialTheme.typography.bodyMedium)
+    }
 }
 
 @Composable
 private fun PersonCard(person: PersonSummary, onClick: () -> Unit) {
     Column(
-        Modifier.width(100.dp).clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick),
+        Modifier.width(108.dp).clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Box(
-            Modifier.size(100.dp)
+            Modifier.size(108.dp)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center,
         ) {
-            if (person.profileUrl != null)
-                AsyncImage(
-                    person.profileUrl,
-                    "Retrato de ${person.name}",
-                    Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
+            if (person.profileUrl != null) MediaStill(person.profileUrl, Modifier.fillMaxSize())
+            else
+                Icon(
+                    Icons.Outlined.PersonOutline,
+                    "Retrato não disponível",
+                    Modifier.size(32.dp),
+                    tint = Muted,
                 )
-            else Icon(Icons.Outlined.PersonOutline, null, Modifier.size(32.dp))
         }
         Text(
             person.name,
@@ -505,59 +594,5 @@ private fun PersonCard(person: PersonSummary, onClick: () -> Unit) {
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
-    }
-}
-
-@Composable
-private fun EpisodeCard(
-    item: EpisodeWithSource,
-    watched: Boolean,
-    onPlay: () -> Unit,
-    onWatched: () -> Unit,
-) {
-    val episode = item.episode
-    Surface(
-        Modifier.padding(horizontal = 20.dp).fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(16.dp),
-    ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(
-                "${episode.number}. ${episode.title}",
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Text(
-                listOfNotNull(episode.airDate, episode.runtimeMinutes?.let { "$it min" })
-                    .joinToString(" · ")
-                    .ifBlank { "Informação não disponível" },
-                color = Muted,
-                style = MaterialTheme.typography.bodySmall,
-            )
-            Text(
-                episode.overview ?: "Informação não disponível",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                OutlinedButton(
-                    onClick = onPlay,
-                    enabled = item.source != null,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Icon(Icons.Outlined.PlayArrow, null, Modifier.size(18.dp))
-                    Text("Reproduzir")
-                }
-                FilterChip(
-                    watched,
-                    onWatched,
-                    label = { Text(if (watched) "Visto" else "Marcar visto") },
-                    leadingIcon = {
-                        Icon(Icons.Outlined.CheckCircleOutline, null, Modifier.size(16.dp))
-                    },
-                )
-            }
-        }
     }
 }

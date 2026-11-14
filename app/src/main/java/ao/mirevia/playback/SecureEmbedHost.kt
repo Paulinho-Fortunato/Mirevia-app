@@ -3,6 +3,7 @@ package ao.mirevia.playback
 import android.content.Context
 import android.widget.FrameLayout
 import ao.mirevia.core.playback.EmbedUrlPolicy
+import ao.mirevia.core.playback.PlaybackBlock
 import ao.mirevia.core.playback.VideoSource
 
 /**
@@ -17,7 +18,7 @@ class SecureEmbedHost(
     private val onClosed: (Long) -> Unit,
     onWrapperLoaded: () -> Unit,
     onFailure: () -> Unit,
-    onBlocked: (String) -> Unit,
+    onBlocked: (PlaybackBlock) -> Unit,
 ) : FrameLayout(context) {
     private var embedded: SecureEmbedWebView? = null
     private var token: Long? = null

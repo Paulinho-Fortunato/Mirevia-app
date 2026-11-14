@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ao.mirevia.app.AppContainer
 import ao.mirevia.core.model.*
+import ao.mirevia.core.playback.PlaybackBlock
 import ao.mirevia.core.playback.VideoSource
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -22,6 +23,7 @@ data class PlayerUi(
     val source: VideoSource? = null,
     val wrapperLoading: Boolean = true,
     val reason: String? = null,
+    val block: PlaybackBlock? = null,
     val storageNotice: String? = null,
     val attempt: Int = 0,
 )
@@ -36,6 +38,10 @@ class PlayerViewModel(
     val state = _state.asStateFlow()
     private var resolveJob: Job? = null
     private var sessionCounter = 0L
+    val episodeLabel: String? =
+        if (season != null && episode != null && season > 0 && episode > 0)
+            "Temporada $season · Episódio $episode"
+        else null
 
     private class Session(var openedJob: Job? = null, var historyId: Long? = null)
 
@@ -96,10 +102,10 @@ class PlayerViewModel(
         }
     }
 
-    fun blocked(attempt: Int, reason: String) {
+    fun blocked(attempt: Int, diagnostic: PlaybackBlock) {
         _state.update {
             if (it.attempt == attempt)
-                it.copy(phase = PlayerPhase.BLOCKED, wrapperLoading = false, reason = reason)
+                it.copy(phase = PlayerPhase.BLOCKED, wrapperLoading = false, block = diagnostic)
             else it
         }
     }
