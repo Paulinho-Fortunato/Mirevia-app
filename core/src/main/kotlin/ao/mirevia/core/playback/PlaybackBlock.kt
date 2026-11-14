@@ -14,7 +14,7 @@ enum class PlaybackBlockKind {
 
 /**
  * In-memory diagnostic, deliberately unable to retain a request URL, path, credentials or query.
- * Observing a hostname never authorizes it. No DNS, network lookup or response inspection.
+ * Does not change the initial-source allowlist or fetch/inspect responses. No DNS/network lookup.
  */
 class PlaybackBlock
 private constructor(
@@ -30,8 +30,9 @@ private constructor(
                 "Domínio: ${host ?: "não identificado"}",
                 "Esquema: ${scheme ?: "não identificado"}",
                 "Porta explícita: ${port?.toString() ?: "nenhuma"}",
-                "Domínios autorizados: ${policy.allowedHosts.sorted().joinToString(", ")}",
-                "O domínio observado não foi autorizado automaticamente.",
+                "Iframe inicial autorizado: ${policy.allowedHosts.sorted().joinToString(", ")}",
+                IframeRequestPolicy.RESOURCE_DESCRIPTION,
+                "O domínio observado não é adicionado à lista de fontes iniciais.",
                 "Sem caminhos, parâmetros, cookies, tokens ou histórico de títulos.",
             )
             .joinToString("\n")

@@ -1,6 +1,6 @@
 # Arquitectura e plano da Mirevia
 
-Plano apresentado antes do código em 14 de Novembro de 2026. O proprietário confirmou a autorização do host **exacto `myembed.biz`**, que é o host actualmente indicado pela documentação de embedmovies.org. Não foram autorizados implicitamente subdomínios, CDNs ou hosts de publicidade.
+Plano original apresentado antes do código em 14 de Novembro de 2026. O proprietário confirmou o host **exacto `myembed.biz`** para a fonte inicial/partilhável, conforme a documentação de embedmovies.org. Na revisão 0.2.1 escolheu explicitamente permitir **recursos e frames internos HTTPS (443) sem lista por domínio**, incluindo métricas/publicidade, com consentimento renovado. Ver o [plano da decisão](iframe-https-policy.md); não se alargou o validador das fontes iniciais.
 
 ## 1. Arquitectura
 
@@ -15,7 +15,7 @@ Compose → ViewModels → contratos/casos de utilização → implementações 
                                                                    └─ EmbedMoviesProvider
 ```
 
-`ResolveVideoSource` rejeita demonstrações e revalida a saída do fornecedor. `EmbedMoviesUrlBuilder` é o único local que conhece os formatos de iframe. O leitor conhece apenas `VideoSource` e a política de segurança.
+`ResolveVideoSource` rejeita demonstrações e revalida a saída do fornecedor. `EmbedMoviesUrlBuilder` é o único local que conhece os formatos de iframe. O leitor separa `EmbedUrlPolicy` (fontes iniciais/partilha) de `IframeRequestPolicy` (main frame local fixo, recursos/frames HTTPS e revisão de consentimento).
 
 ## 2. Estrutura de pastas
 
@@ -48,7 +48,7 @@ app/src/androidTest/         testes instrumentados Room, Compose e WebView
 core/src/main/kotlin/ao/mirevia/core/
   model/                     modelos de domínio
   repository/                contratos para dados locais/remotos
-  playback/                  fornecedor, URL builder, política HTTPS e diagnóstico sem URL bruto
+  playback/                  fornecedor, URL builder, políticas de fonte/recursos e diagnóstico sem URL bruto
 core/src/test/               testes independentes de Android
 gradle/                      versões e wrapper com checksums
 scripts/                     verificações de fontes e sintaxe
@@ -98,7 +98,7 @@ Idioma de metadados inicial `pt-PT`. Imagens e tamanhos vêm de `/configuration`
 
 Ver [provider-integration.md](provider-integration.md). Apenas quatro formas de iframe confirmadas na documentação. Não há scraping, pesquisa por título, downloads, links alternativos ou endpoints inferidos.
 
-O host documentado é `myembed.biz`, aprovado pelo proprietário. Lista actual de recursos externos: esse host exacto. Eventuais dependências adicionais exigem confirmação do fornecedor. Uma URL estruturalmente válida não confirma disponibilidade nem autorização sobre uma obra específica.
+O host inicial documentado é `myembed.biz`, aprovado pelo proprietário. As rotas iniciais e partilháveis continuam exactas; os recursos/frames internos seguem HTTPS (443) sem lista de hosts, por decisão explícita. Os terceiros podem receber dados técnicos, publicidade/métricas próprias, sem a app injectar os seus scripts. Uma URL estruturalmente válida não confirma disponibilidade, confiança ou autorização sobre uma obra específica.
 
 ## 7. EmbedMoviesProvider
 
@@ -110,7 +110,7 @@ Fullscreen do iframe é documentado. A flag PiP nativo é falsa: não existe con
 
 ## 8. WebView
 
-Wrapper local HTTPS com WebViewAssetLoader e um iframe real, CSP restritiva, sem scripts próprios nem bridges. Política exacta para navegações e pedidos observáveis, TLS sem excepções, sem ficheiros, uploads, permissões sensíveis, janelas não validadas, conteúdo misto ou cookies de terceiros. O filtro não descarrega nem lê respostas.
+Wrapper local HTTPS com WebViewAssetLoader e um iframe real, CSP `default-src 'none'; frame-src https://*:443`, sem scripts próprios nem bridges. `EmbedUrlPolicy` valida apenas a fonte inicial/partilhável: host/rota/IDs/flags. `IframeRequestPolicy` permite domínios HTTPS (443) para frames e recursos observáveis sem lista por hostname; `shouldOverrideUrlLoading`, `shouldInterceptRequest` e o cliente de service workers delegam a essa política. A página principal só pode ser o URL exacto do wrapper servido localmente; o host reservado não é requisitado remotamente como recurso. TLS sem excepções, sem ficheiros, uploads, permissões sensíveis, janelas não validadas, conteúdo misto ou cookies de terceiros. O filtro não descarrega nem lê respostas.
 
 **A WebView não é um firewall de rede.** Ver [security.md](security.md) para limites em redireccionamentos de sub-recursos, WebSockets, armazenamento interno e observabilidade do iframe. Esta implementação restritiva não é uma certificação de isolamento absoluto de rede.
 
@@ -129,9 +129,11 @@ Wrapper local HTTPS com WebViewAssetLoader e um iframe real, CSP restritiva, sem
 └──────────────────────────────────────────────────────┘
 ```
 
-Estado inicial de resolução de metadados, indisponibilidade, consentimento, carregamento do wrapper, erro de rede/TLS/renderização e bloqueio de segurança com diagnóstico de origem copiável/partilhável por gesto explícito. A origem observada nunca se torna autorizada por causa disso. A página carregada não é confundida com um vídeo iniciado. Ecrãs de erro e diálogos têm scroll para acomodar orientação horizontal e letras maiores.
+Estado inicial de resolução de metadados, indisponibilidade, consentimento, carregamento do wrapper, erro de rede/TLS/renderização e bloqueio de segurança com diagnóstico de origem copiável/partilhável por gesto explícito. O relatório distingue a fonte inicial das permissões HTTPS de recursos: observar/copiar não acrescenta fontes iniciais nem altera consentimento. A página carregada não é confundida com um vídeo iniciado. Ecrãs de erro e diálogos têm scroll para acomodar orientação horizontal e letras maiores.
 
 Sem slider de progresso, selector de qualidade/legendas ou botões falsos. O modo expandido funciona sobre a superfície WebView; fullscreen de vídeo vem de `onShowCustomView`. No segundo plano o iframe é destruído e o regresso recarrega a sessão; não há reprodução de fundo nem PiP nativo implícito.
+
+`ExternalPlayerConsentDialog` é comum ao player e às definições. DataStore só expõe aprovação com booleano verdadeiro e revisão actual (2); aprovação anterior sem revisão não autoriza o novo alcance. Aceitar grava os dois campos atomicamente, revogar remove a revisão, erros falham fechados. Não altera a base de dados da biblioteca.
 
 Os textos de origem, falha e indisponibilidade pedidos estão em `strings.xml`. A abertura externa usa o playground oficial, que também contém iframe; não abre o `src` como player de vídeo solto.
 
@@ -152,7 +154,7 @@ As fontes das etapas 1–7 estão implementadas. A validação Android da etapa 
 
 Versões fixas em `gradle/libs.versions.toml`: AGP 8.9.2, Gradle 8.11.1, Kotlin/Compose plugin 2.1.20, Compose BOM 2025.04.01, Navigation, Lifecycle, Material 3, Coroutines/Flow, Retrofit, OkHttp, Kotlin Serialization, Room/KSP, DataStore, Coil e AndroidX WebKit.
 
-Sem anúncios próprios, SDK de pagamento, analytics ou ExoPlayer para o embed. Trailers oficiais abrem a plataforma original após confirmação. Media3 só deve ser acrescentado para conteúdos explicitamente compatíveis/autorizados, não para streams extraídos do fornecedor.
+Sem anúncios próprios, SDK de pagamento, analytics próprios ou ExoPlayer para o embed. Os documentos do fornecedor podem carregar publicidade/métricas depois do consentimento, sem injecção/alteração pela app. Trailers oficiais abrem a plataforma original após confirmação. Media3 só deve ser acrescentado para conteúdos explicitamente compatíveis/autorizados, não para streams extraídos do fornecedor.
 
 ## 12. Testes
 
@@ -166,4 +168,10 @@ Os detalhes separam Episódios/Sobre/Mais títulos. Trocar de temporada cancela 
 
 `readAppIdentity` usa o PackageManager apenas para o próprio pacote e fingerprints SHA-256 públicos, em IO, com fallback de API 24 e API 28+ guardada. Não enumera outras apps nem lê chaves privadas. A folha de segurança não faz análise antivírus nem certifica a aplicação; mantém a recomendação de investigar o Play Protect sem o desactivar.
 
-Esta revisão mantém as dependências, minSdk 24, desugaring, compile/target 35, fornecedor e allowlist exacta. A versão de fontes passa a 0.2.0/código 2 para distinguir o APK a investigar. Não altera workflows, assinatura ou token. Ver [testing.md](testing.md) para resultados locais versus validação Android pendente.
+Historicamente, a revisão 0.2.0/código 2 manteve as dependências, minSdk 24, desugaring, compile/target 35, fornecedor e allowlist exacta então aplicada também aos recursos. Não alterou workflows, assinatura ou token. Os resultados dessa revisão não comprovam uma build nova.
+
+## Revisão 0.2.1 — recursos HTTPS e consentimento
+
+Após o diagnóstico `RESOURCE`/`https`/`static.cloudflareinsights.com` sem porta explícita, o proprietário escolheu eliminar a lista por host **dos recursos e frames internos**. A implementação separa essa política da fonte inicial/partilha, alinha o `frame-src` da CSP própria e renova a aprovação nas duas entradas da UI. Versão de fontes 0.2.1/código 3; dependências, mínimo API 24/desugaring, compile/target 35, permissões, workflows, assinatura e token preservados.
+
+HTTPS não certifica uma origem; este alcance aumenta a exposição a terceiros e não promete reprodução nem resolve o Play Protect. Ver [testing.md](testing.md) para testes realmente executados e validação Android ainda pendente.

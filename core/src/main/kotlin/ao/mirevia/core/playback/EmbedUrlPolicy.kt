@@ -3,7 +3,10 @@ package ao.mirevia.core.playback
 import java.net.URI
 import java.util.Locale
 
-/** Exact hosts only. No suffix matching, wildcards or implicit subdomain trust. */
+/**
+ * Initial-source/share policy: exact hosts only, without suffix matching or implicit subdomain
+ * trust. Consented iframe resource/frame requests use IframeRequestPolicy instead.
+ */
 class EmbedUrlPolicy(allowedHosts: Set<String>) {
     val allowedHosts: Set<String> = allowedHosts.map { it.lowercase(Locale.ROOT) }.toSet()
 

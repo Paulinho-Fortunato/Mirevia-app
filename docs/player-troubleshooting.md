@@ -1,38 +1,63 @@
 # Player interrompido e alerta do Play Protect
 
-## O que foi relatado
+## O que foi relatado e a decisão 0.2.1
 
-O proprietário conseguiu instalar a versão anterior. No player surgiu a mensagem da Mirevia sobre um recurso de domínio/esquema não autorizado. Confirmou que o erro **não mostrava o domínio**, e que o alerta de risco vem do **Google Play Protect**. Não recebemos uma captura integral, o APK sinalizado, o modelo/versão Android ou a identificação da execução de build. Não é possível determinar a causa específica do alerta Google a partir desta descrição.
+O proprietário conseguiu instalar uma versão anterior e reportou um bloqueio sem domínio visível. A revisão 0.2.0 acrescentou um diagnóstico só de origem; depois forneceu estes dados reais:
 
-A revisão de fontes 0.2.0 acrescenta um diagnóstico local de origem, partilha e melhorias de interface. **Não contém uma lista nova de CDNs nem demonstra que o player já reproduz. Não afirma que o APK é seguro ou que o Play Protect deixará de o sinalizar.**
+```text
+Motivo: RESOURCE
+Domínio: static.cloudflareinsights.com
+Esquema: https
+Porta explícita: nenhuma
+Domínios autorizados (política antiga): myembed.biz
+```
 
-## Porque é que o iframe pode ser bloqueado?
+A antiga política aplicava a lista exacta também aos recursos. O proprietário escolheu explicitamente **permitir os recursos e frames internos HTTPS sem aprovar cada hostname**, em vez de acrescentar só Cloudflare. A revisão 0.2.1/código 3 implementa isso nas fontes; **não foi gerado/instalado um novo APK aqui nem comprovada reprodução**. A alteração não actualiza automaticamente um APK já instalado.
 
-As rotas fornecidas pelo proprietário correspondem às da [documentação oficial](https://embedmovies.org/):
+O alerta de risco foi identificado como **Google Play Protect**. Ainda não recebemos o aviso/captura integral, o APK sinalizado, o modelo/versão Android ou a identificação da execução de build. Permitir um recurso não explica nem resolve esse alerta; não há declaração de falso positivo ou certificação de segurança.
+
+### O que mudou na política
+
+| Superfície | Regra actual |
+| --- | --- |
+| Fonte inicial / link MyEmbed partilhado | Só HTTPS `myembed.biz` exacto e rotas oficiais com IDs positivos |
+| Recursos e frames internos | HTTPS, porta padrão 443, qualquer domínio remoto, sem lista por host |
+| Página principal | Só o documento local `https://appassets.androidplatform.net/player/index.html` |
+| Restrições preservadas | TLS/Safe Browsing quando suportado; sem HTTP, esquemas perigosos, credenciais no URL, portas alternativas, ficheiros, downloads, permissões sensíveis ou janelas não verificadas |
+
+`static.cloudflareinsights.com` já não é recusado apenas por não constar de uma lista. A [FAQ oficial Cloudflare](https://developers.cloudflare.com/web-analytics/faq/) identifica `https://static.cloudflareinsights.com/beacon.min.js` como Web Analytics e `cloudflareinsights.com` como possível destino de métricas. O diagnóstico não incluiu o caminho; identificar o hostname não demonstra que aquele pedido era vídeo, que um título está disponível ou que o player já funciona.
+
+A Mirevia não injecta analytics, não filtra anúncios e não modifica o documento remoto. O fornecedor pode carregar publicidade/métricas/CDNs de terceiros que recebam IP e dados técnicos/navegação. **HTTPS protege o transporte, não certifica que o domínio é fiável.** A CSP própria permite `frame-src https://*:443`, sem remover a CSP/X-Frame-Options do fornecedor. Ver [decisão completa](iframe-https-policy.md) e [limites WebView](security.md).
+
+### Consentimento renovado e nova build
+
+1. O consentimento anterior só divulgava `myembed.biz` e não será reutilizado para o alcance mais amplo. Mesmo com aprovação antiga guardada, o WebView não é criado até confirmação actual.
+2. Depois de uma build actualizada ter sido analisada e considerada adequada para teste, o diálogo do player explica os terceiros/HTTPS e permite **Aceitar** ou **Cancelar**. Se houver alerta activo do Play Protect, não o ignores para testar: investiga-o primeiro.
+3. Activar **Consentimento do player externo** nas definições abre a mesma confirmação, não aceita directamente. Desactivar revoga a aprovação. A biblioteca/histórico não são apagados por essa renovação.
+4. Falhas de leitura/escrita não contam como aprovação. O diálogo mantém o iframe por carregar e apresenta erro. Repetir ou copiar um diagnóstico não autoriza mais fontes iniciais nem altera as protecções.
+5. Para instalar a política nova é necessária uma nova build da revisão actual, com assinatura compatível com a anterior para a actualizar sem perder dados. Não se iniciou um workflow nem se gerou um APK nesta revisão aqui.
+
+## Porque é que o iframe ainda pode ser bloqueado?
+
+As rotas do proprietário correspondem às da [documentação oficial](https://embedmovies.org/):
 
 - `https://myembed.biz/filme/969681`
 - `https://myembed.biz/filme/tt22084616`
 - `https://myembed.biz/serie/30984`
 - `https://myembed.biz/serie/30984/1/1`
 
-Esses valores são exemplos de formato, não confirmação de disponibilidade ou direitos sobre esses títulos. O app usa apenas metadados/IDs reais da TMDB configurada, nunca estes exemplos como catálogo real.
+São exemplos de formato, não confirmação de disponibilidade ou direitos sobre esses títulos. O app usa metadados/IDs reais da TMDB configurada, nunca estes exemplos como catálogo real. A página local contém **um iframe real**, com `src` validado e as permissões oficiais, não um player personalizado. A app não lê o DOM nem extrai vídeo.
 
-A página local da Mirevia contém **um iframe real**, não um player personalizado. O `src` é gerado com IDs validados e conserva as permissões `autoplay; encrypted-media; picture-in-picture; fullscreen` e `allowfullscreen`. JavaScript pertence ao documento remoto: a app não injecta código, não lê o DOM e não extrai vídeo.
-
-O fornecedor pode depender de outras origens para scripts, imagens, publicidade, licenças ou distribuição. A lista actualmente aprovada só contém **`myembed.biz` exacto**. A documentação não publica o inventário completo. Se um pedido observável usar outra origem ou um esquema não permitido, a sessão inteira é interrompida — não é uma filtragem selectiva de anúncios.
+Permitir hosts HTTPS não remove erros do fornecedor, requisitos de cookies incompatíveis, indisponibilidade, CSP/X-Frame-Options ou problemas de WebView. HTTP, URLs malformados, credenciais no endereço, porta não padrão, tentativa de sair da página principal, download, nova janela e Safe Browsing continuam a poder interromper a sessão inteira. Não é filtragem selectiva de publicidade.
 
 ### Recolher o diagnóstico sem expor URLs sensíveis
 
-1. Se houver um alerta activo do Play Protect, **não ignores o alerta para testar**. Primeiro investiga-o conforme a secção seguinte.
-2. Depois de uma build actualizada ser analisada e considerada adequada para teste, abre um conteúdo autorizado e confirma o consentimento do iframe.
-3. Se surgir **Player interrompido**, consulta `Domínio bloqueado`, `Esquema` e os domínios autorizados.
-4. Usa **Copiar diagnóstico** ou **Partilhar diagnóstico** se quiseres enviar esses dados ao responsável. O relatório só inclui motivo, domínio, esquema, porta explícita e a lista permitida. Não inclui título/histórico, modelo do aparelho, caminho do recurso, query, fragmento, cookies, bearer ou token.
-5. Pede ao fornecedor confirmação da origem exacta e da sua finalidade. Um domínio que apareceu num pedido **não é automaticamente fiável**. Não adoptar `*`, confiança por sufixo ou uma lista aleatória de hosts.
-6. Só depois de confirmação técnica/documental e autorização explícita se deve rever a política de recursos e repetir os testes de segurança e reprodução.
+1. Se surgir **Player interrompido** numa build actual adequada para teste, consulta **Domínio observado**, **Esquema**, **Porta explícita**, **Iframe inicial autorizado** e o alcance dos recursos HTTPS. O domínio observado não é uma nova fonte inicial aprovada.
+2. Usa **Copiar diagnóstico** ou **Partilhar diagnóstico** opcionalmente. O relatório só inclui motivo, domínio, esquema, porta e descrição das duas políticas. Não inclui título/histórico, aparelho, caminho do recurso, query, fragmento, cookies, bearer ou token.
+3. Um domínio HTTPS desconhecido não deve, por si só, produzir `RESOURCE` nesta revisão. Se o relatório ainda mostrar só «Domínios autorizados: myembed.biz», confirma se instalaste a nova build/versão; não recolhas URLs de vídeo para resolver isso. Num bloqueio novo, verifica motivo/esquema/porta/restrições com o responsável, não acrescentes hosts à lista de fontes iniciais.
+4. Para `UNSAFE_PAGE`, mantém Safe Browsing e interrompe a utilização dessa origem. Para `WEBVIEW_FEATURE`, actualiza o Android System WebView sem desligar protecções. Para `NEW_WINDOW`/`DOWNLOAD`, não há domínio verificável: a app não inventa um nem abre a janela/ficheiro.
 
-Se o motivo for `UNSAFE_PAGE`, mantém o Safe Browsing e interrompe a utilização dessa origem. Se for `WEBVIEW_FEATURE`, a versão instalada do Android System WebView não oferece as capacidades exigidas; actualizar o motor não deve implicar desactivar protecções. Para `NEW_WINDOW` ou `DOWNLOAD`, não há um domínio verificável: a app não inventa um nem abre a janela/ficheiro.
-
-Repetir o carregamento **não** autoriza o domínio. Não há fallback para outra fonte, stream, extractor, UA/referrer falsificado, remoção de CSP/X-Frame-Options, CAPTCHA ou restrições do serviço.
+Não há fallback para outra fonte/stream, extractor, UA/referrer falsificado, remoção de CSP/X-Frame-Options, CAPTCHA ou restrições do serviço. **Uma URL ou recurso permitido não garante reprodução.**
 
 ## Partilhar o título ou o link MyEmbed
 
@@ -70,5 +95,5 @@ A [ajuda oficial Google](https://support.google.com/googleplay/answer/2812853?hl
 - Android lint/build/testes instrumentados desta revisão; os testes JVM isolados não compilam a UI Android.
 - Retrato/paisagem, fullscreen/back, partilha/regresso ao player, consentimento revogado e Android System WebView em API 24 e API 35.
 - Fontes a 1,5×/2×, TalkBack, teclado do selector, listas longas, episódios especiais, ausência de stills, erro/repetição/offline.
-- Identificação da origem bloqueada, confirmação do fornecedor, revisão explícita da allowlist e uma reprodução real autorizada.
+- Validar a renovação de consentimento após actualizar uma instalação antiga, o mesmo diálogo nas definições, frames/redireccionamentos/recursos HTTPS não listados e workers, mantendo as recusas de esquema/porta/main frame. A origem Cloudflare e a decisão já são conhecidas; reprodução real autorizada ainda não foi testada.
 - O alerta exacto do Play Protect e o artefacto ao qual se refere. Não foi feita análise do APK nem obtida certificação de segurança.

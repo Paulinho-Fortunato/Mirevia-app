@@ -76,6 +76,19 @@ class MediaSharingTest {
     }
 
     @Test
+    fun `consented HTTPS resource domains can never become shared playback sources`() {
+        listOf(
+                "https://static.cloudflareinsights.com/filme/969681",
+                "https://unlisted.example/filme/969681",
+                "https://cdn.myembed.biz/filme/969681",
+            )
+            .forEach { url ->
+                assertTrue(IframeRequestPolicy.isAllowedRequest(url, false))
+                assertNull(url, MediaSharing.embed(movie, source(url), policy))
+            }
+    }
+
+    @Test
     fun `title type and numeric id must match the route`() {
         assertNull(MediaSharing.embed(movie, source("https://myembed.biz/serie/30984"), policy))
         assertNull(MediaSharing.embed(series, source("https://myembed.biz/filme/969681"), policy))

@@ -15,7 +15,8 @@ class EmbedPageTest {
         assertTrue(html.contains("<iframe src=\"https://myembed.biz/filme/11\""))
         assertTrue(html.contains("allowfullscreen"))
         assertTrue(html.contains("encrypted-media"))
-        assertTrue(html.contains("frame-src https://myembed.biz"))
+        assertTrue(html.contains("frame-src https://*:443;"))
+        assertFalse(html.contains("frame-src https://myembed.biz"))
     }
 
     @Test
@@ -62,6 +63,24 @@ class EmbedPageTest {
         assertFalse(html.contains("referrerpolicy=\"unsafe-url"))
         assertFalse(html.contains("<script"))
     }
+
+    @Test
+    fun `wrapper CSP permits HTTPS frames but no scripts forms objects or connections`() =
+        runBlocking {
+            val source =
+                EmbedMoviesProvider(policy.allowedHosts).getMovieSource(11, null, null, null)!!
+            val html = EmbedPage.html(source, policy)
+            assertTrue(html.contains("default-src 'none'"))
+            assertTrue(html.contains("frame-src ${IframeRequestPolicy.FRAME_CSP_SOURCES};"))
+            assertEquals("https://*:443", IframeRequestPolicy.FRAME_CSP_SOURCES)
+            listOf("object-src 'none'", "base-uri 'none'", "form-action 'none'").forEach {
+                assertTrue(html.contains(it))
+            }
+            assertFalse(html.contains("script-src"))
+            assertFalse(html.contains("connect-src"))
+            assertFalse(html.contains("frame-src *"))
+            assertEquals(IframeRequestPolicy.LOCAL_DOCUMENT_URL, EmbedPage.URL)
+        }
 
     @Test(expected = IllegalArgumentException::class)
     fun `cannot embed an arbitrary host`() {
