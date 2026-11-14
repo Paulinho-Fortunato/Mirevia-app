@@ -6,9 +6,12 @@
 | --- | --- |
 | Compilação Kotlin JVM de `:core` e `EmbedPage` | Executada com Kotlin 2.1.20 e Java 17 |
 | JUnit: domínio, URLs, fornecedor, filtros, wrapper | **22 testes passaram** |
-| Parser PSI Kotlin, incluindo testes e scripts Gradle | **64 ficheiros sem erros de sintaxe** na verificação anterior; o novo teste de compatibilidade Android 7.0 ainda não foi verificado com PSI |
+| Parser PSI Kotlin, incluindo testes e scripts Gradle | **64 ficheiros sem erros de sintaxe** na verificação anterior; os novos testes de compatibilidade Android 7.0 e da linha de pesquisa ainda não foram verificados com PSI |
 | `python3 scripts/verify_source.py` | Passou: XML, TOML, manifesto, permissões, invariantes do iframe/WebView, checksums e restrições do template de APK |
-| Templates `ci/android.yml.example` e `ci/build-apk.yml.example` | YAML analisado; 11 scripts passaram `bash -n`; matriz API 24/35 conferida; gates de minSdk e secret testados com dados simulados, sem APK ou credencial real |
+| Workflow pessoal e dois templates em `ci/` | YAML analisado; scripts passaram `bash -n`; os quatro setups Android pedem explicitamente `platform-tools`, sem `tools` legado; matriz API 24/35 conferida |
+| Gates de minSdk e secret | Verificados anteriormente com dados simulados, sem APK ou credencial real |
+| Actions: preparação Android SDK | A execução `43613957749` passou setup Java/Android/Gradle e instalação SDK após a configuração explícita de pacotes |
+| Actions: Kotlin Android | A mesma execução completou `:core:test`, mas falhou em `:app:compileDebugKotlin`: conflito com `Activity.setImmersive` e callback de `MediaSearchRow`; correcções locais ainda sem nova compilação Android |
 | `./gradlew :core:test :app:assembleDebug` | **Bloqueado antes da compilação**: SSLHandshakeException/EOF ao obter a distribuição Gradle no ambiente com rede restrita |
 | Android SDK / emulador | Não disponíveis neste ambiente |
 | Testes de Retrofit, mapeamentos e ViewModels via Gradle | Escritos, ainda não executados aqui |
@@ -39,9 +42,25 @@ Relatórios:
 - `app/build/reports/lint-results-debug.html`
 - `app/build/reports/androidTests/connected/debug/index.html`
 
-O template inactivo [ci/android.yml.example](ci/android.yml.example) está preparado para executar unitários, lint e build em push/PR com dados de demonstração, sem segredos. Depois de instalado, `workflow_dispatch` acrescenta uma matriz de emuladores **API 24 (Android 7.0) e API 35**. **Não existe um workflow GitHub Actions activo nem uma execução remota validada neste projecto.** O proprietário optou por manter CI como template porque a ligação GitHub não tem permissão para publicar workflows. A activação exige um responsável com essa permissão, conforme [ci/README.md](ci/README.md).
+O template inactivo [ci/android.yml.example](ci/android.yml.example) está preparado para executar unitários, lint e build em push/PR com dados de demonstração, sem segredos. Depois de instalado, `workflow_dispatch` acrescenta uma matriz de emuladores **API 24 (Android 7.0) e API 35**. Este CI de demonstração continua como template. O proprietário instalou separadamente o workflow pessoal [`.github/workflows/build-apk.yml`](../.github/workflows/build-apk.yml), apenas manual; isso não activa testes automáticos em PRs. A instalação ou actualização de workflows exige um responsável autorizado, conforme [ci/README.md](ci/README.md).
 
-O segundo template, [`ci/build-apk.yml.example`](ci/build-apk.yml.example), destina-se à geração **manual** de um APK pessoal com o token TMDB embutido. Primeiro executa testes/lint em demonstração; só a compilação final recebe o secret. Confirma a assinatura para API 24 com `apksigner` e verifica com `aapt` que o manifesto do APK declara `minSdk 24`, antes de o disponibilizar. Não foi executado remotamente aqui: a existência do template e a validação da sua estrutura não equivalem a uma build Android bem-sucedida. Ver [ci/README.md](ci/README.md) para configuração, download e riscos de exposição do token.
+O segundo template, [`ci/build-apk.yml.example`](ci/build-apk.yml.example), destina-se à geração **manual** de um APK pessoal com o token TMDB embutido. Primeiro executa testes/lint em demonstração; só a compilação final recebe o secret. Confirma a assinatura para API 24 com `apksigner` e verifica com `aapt` que o manifesto do APK declara `minSdk 24`, antes de o disponibilizar. A falha inicial na preparação do SDK foi ultrapassada pedindo apenas `platform-tools` à action, mantendo plataforma 35 e Build Tools 35.0.0 no passo seguinte. A [execução `43613957749`](https://github.com/Paulinho-Fortunato/Mirevia-app/actions/runs/43613957749) chegou à compilação Kotlin Android e reportou dois problemas de código, descritos abaixo. Ainda não foi concluída uma build Android bem-sucedida. Ver [ci/README.md](ci/README.md) para configuração, download e riscos de exposição do token.
+
+## Erros de compilação Kotlin reportados em Actions
+
+A execução `43613957749` falhou em `:app:compileDebugKotlin`, antes dos unitários Android, do lint e da geração do APK:
+
+- `PlayerActivity` declarava `private fun setImmersive(Boolean)`, colidindo com um membro herdado de `android.app.Activity`. O helper foi renomeado para `setPlayerImmersiveMode`, incluindo a referência enviada ao `PlayerScreen`. Não se substitui o método da plataforma: o comportamento pretendido continua a ser controlar as barras via `WindowInsetsCompat`.
+- `MediaSearchRow(result.media) { ... }` deixava a lambda fora dos parênteses, apesar de o último parâmetro ser `subtitle: String?`, não `onClick`. A chamada dos resultados passa agora `media = ...` e **`onClick = { ... }`** explicitamente; a assinatura do componente e as outras chamadas válidas não foram alteradas.
+
+O verificador de fontes passou a recusar estes padrões conhecidos e referências inconsistentes ao helper. São checks de regressão textual, **não compilação Kotlin**. `MediaSearchRowTest` acrescenta dois testes Compose: seleccionar a chave correcta ao tocar no resultado e não executar `onClick` durante composição com subtítulo/conteúdo final. Usa apenas conteúdo fictício local, sem URLs de imagens, TMDB ou player; estes testes instrumentados ainda não foram executados.
+
+Para validar as correcções, publicar os ficheiros Kotlin actualizados na branch compilada e iniciar uma nova execução. Alterar apenas o YAML não corrige estes erros de código. A confirmação real continua a exigir:
+
+```sh
+./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+./gradlew :app:connectedDebugAndroidTest
+```
 
 ## Compatibilidade Android 7.0 — pendente de execução
 
@@ -121,7 +140,7 @@ Separador de classpath no Windows: `;` em vez de `:`.
 ### Instrumentação
 
 - Room: flags independentes, IDs isolados, histórico sem progresso falso, vistos por episódio e pesquisas limitadas/deduplicadas.
-- Compose: cinco separadores, detalhe de demonstração com reprodução desactivada, favorito.
+- Compose: cinco separadores, detalhe de demonstração com reprodução desactivada, favorito; linha de pesquisa com `onClick` nomeado, subtítulo e conteúdo final opcionais.
 - WebView: restrições de settings, sem contactar o fornecedor (`autoLoad=false` no teste).
 - Android 7.0+: mínimo de instalação API 24 e APIs de datas `java.time` no dispositivo, via desugaring.
 

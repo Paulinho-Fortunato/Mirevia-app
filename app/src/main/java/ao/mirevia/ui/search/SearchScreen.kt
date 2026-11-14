@@ -157,7 +157,10 @@ fun SearchScreen(
                 items(state.items, key = { it.stableKey }) { result ->
                     when (result) {
                         is SearchResult.Media ->
-                            MediaSearchRow(result.media) { onDetails(result.media.key) }
+                            MediaSearchRow(
+                                media = result.media,
+                                onClick = { onDetails(result.media.key) },
+                            )
                         is SearchResult.Person ->
                             PersonSearchRow(result.person) { onPerson(result.person.id) }
                     }
