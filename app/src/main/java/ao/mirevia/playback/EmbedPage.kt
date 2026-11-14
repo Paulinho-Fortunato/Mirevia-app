@@ -20,7 +20,7 @@ object EmbedPage {
             <title>Mirevia — player externo</title>
             <style>html,body{margin:0;width:100%;height:100%;background:#000;overflow:hidden}iframe{display:block;width:100%;height:100%;border:0}</style>
             </head><body>
-            <iframe src="${source.url}" title="Player externo EmbedMovies" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>
+            <iframe src="${source.url}" title="Player externo EmbedMovies" width="100%" height="100%" frameborder="0" scrolling="no" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>
             </body></html>
         """
             .trimIndent()

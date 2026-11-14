@@ -1,36 +1,41 @@
 package ao.mirevia.ui.theme
 
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-val Mint = Color(0xFFA5EFCA)
-val Ink = Color(0xFF0B0E13)
-val Muted = Color(0xFF9AA5AD)
+val Accent = Color(0xFFFF7185)
+val Ink = Color(0xFF09090D)
+val Muted = Color(0xFFAAA7B2)
+val Gold = Color(0xFFEBCB91)
 val LocalReduceMotion = staticCompositionLocalOf { false }
 val LocalNetworkAvailable = staticCompositionLocalOf { true }
 
 private val Colors =
     darkColorScheme(
-        primary = Mint,
-        onPrimary = Color(0xFF10251D),
-        primaryContainer = Color(0xFF213A30),
-        onPrimaryContainer = Color(0xFFCBF8E0),
-        secondary = Color(0xFFADC8F3),
-        onSecondary = Color(0xFF13283E),
-        tertiary = Color(0xFFDFC58F),
+        primary = Color(0xFFF5F2EE),
+        onPrimary = Color(0xFF161318),
+        primaryContainer = Color(0xFF3C202B),
+        onPrimaryContainer = Color(0xFFFFD9E0),
+        secondary = Accent,
+        onSecondary = Color(0xFF350C1A),
+        secondaryContainer = Color(0xFF30202A),
+        onSecondaryContainer = Color(0xFFFFD9E0),
+        tertiary = Gold,
         background = Ink,
-        onBackground = Color(0xFFF2F4F5),
-        surface = Color(0xFF13191F),
-        onSurface = Color(0xFFF2F4F5),
-        surfaceVariant = Color(0xFF222B32),
-        onSurfaceVariant = Color(0xFFADB7BF),
-        outline = Color(0xFF56626C),
-        outlineVariant = Color(0xFF2A343D),
+        onBackground = Color(0xFFF5F2EE),
+        surface = Color(0xFF141419),
+        onSurface = Color(0xFFF5F2EE),
+        surfaceVariant = Color(0xFF24232B),
+        onSurfaceVariant = Color(0xFFBCB8C4),
+        outline = Color(0xFF625D6B),
+        outlineVariant = Color(0xFF302D38),
         error = Color(0xFFFFB4AB),
         onError = Color(0xFF690005),
     )
@@ -39,31 +44,34 @@ private val Type =
         displaySmall =
             TextStyle(
                 fontFamily = FontFamily.SansSerif,
-                fontWeight = FontWeight.Bold,
-                fontSize = 38.sp,
-                lineHeight = 43.sp,
-                letterSpacing = (-1).sp,
+                fontWeight = FontWeight.Black,
+                fontSize = 40.sp,
+                lineHeight = 45.sp,
+                letterSpacing = (-1.4).sp,
             ),
         headlineLarge =
             TextStyle(
                 fontFamily = FontFamily.SansSerif,
                 fontWeight = FontWeight.Bold,
                 fontSize = 32.sp,
-                lineHeight = 38.sp,
+                lineHeight = 37.sp,
+                letterSpacing = (-0.8).sp,
             ),
         headlineMedium =
             TextStyle(
                 fontFamily = FontFamily.SansSerif,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 26.sp,
-                lineHeight = 32.sp,
+                fontWeight = FontWeight.Bold,
+                fontSize = 27.sp,
+                lineHeight = 33.sp,
+                letterSpacing = (-0.6).sp,
             ),
         titleLarge =
             TextStyle(
                 fontFamily = FontFamily.SansSerif,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 21.sp,
-                lineHeight = 27.sp,
+                fontWeight = FontWeight.Bold,
+                fontSize = 22.sp,
+                lineHeight = 28.sp,
+                letterSpacing = (-0.4).sp,
             ),
         titleMedium =
             TextStyle(
@@ -79,9 +87,10 @@ private val Type =
         labelSmall =
             TextStyle(
                 fontFamily = FontFamily.SansSerif,
-                fontWeight = FontWeight.Medium,
+                fontWeight = FontWeight.SemiBold,
                 fontSize = 11.sp,
-                letterSpacing = 1.sp,
+                lineHeight = 16.sp,
+                letterSpacing = 0.7.sp,
             ),
     )
 
@@ -95,6 +104,18 @@ fun MireviaTheme(
         LocalReduceMotion provides reduceMotion,
         LocalNetworkAvailable provides networkAvailable,
     ) {
-        MaterialTheme(colorScheme = Colors, typography = Type, content = content)
+        MaterialTheme(
+            colorScheme = Colors,
+            typography = Type,
+            shapes =
+                Shapes(
+                    extraSmall = RoundedCornerShape(6.dp),
+                    small = RoundedCornerShape(10.dp),
+                    medium = RoundedCornerShape(16.dp),
+                    large = RoundedCornerShape(24.dp),
+                    extraLarge = RoundedCornerShape(30.dp),
+                ),
+            content = content,
+        )
     }
 }

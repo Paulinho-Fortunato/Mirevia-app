@@ -29,14 +29,16 @@ app/src/main/java/ao/mirevia/
   data/repository/           implementações dos contratos
   navigation/                grafo Compose e barra inferior
   ui/theme/                  tema escuro, tipografia, redução de animações
-  ui/components/             cartões, skeletons, estados, ligações externas
+  ui/components/             cartões, skeletons, estados, partilha de texto e ligações externas
   ui/home/                   início e continuar a ver
   ui/explore/                catálogo com filtros e paginação
   ui/search/                 debounce, pessoas, histórico e paginação
-  ui/details/                metadados, temporadas e episódios
+  ui/details/                separadores, selector pesquisável, stills e episódios
   ui/person/                 pessoa e filmografia
   ui/library/                lista, favoritos, vistos e histórico
-  ui/settings/               créditos e documentos legais
+  ui/settings/               créditos, documentos legais e identidade do pacote
+  ui/preview/                previews Compose fictícios, sem rede
+  security/                  metadados públicos da assinatura/permissões próprias
   ui/player/                 estados e ecrã de reprodução
   playback/                  iframe, WebView, fullscreen, Activity isolada
 app/src/main/assets/         termos e privacidade editáveis
@@ -46,7 +48,7 @@ app/src/androidTest/         testes instrumentados Room, Compose e WebView
 core/src/main/kotlin/ao/mirevia/core/
   model/                     modelos de domínio
   repository/                contratos para dados locais/remotos
-  playback/                  fornecedor, URL builder e política HTTPS
+  playback/                  fornecedor, URL builder, política HTTPS e diagnóstico sem URL bruto
 core/src/test/               testes independentes de Android
 gradle/                      versões e wrapper com checksums
 scripts/                     verificações de fontes e sintaxe
@@ -60,10 +62,11 @@ Barra inferior: **Início → Explorar → Pesquisa → Minha lista → Definiç
 
 - Início/exploração/pesquisa/biblioteca → `details/{origin}/{type}/{id}`.
 - Pesquisa/elenco/criação/realização → `person/{id}` → detalhes.
-- Detalhes de série → seleccionar temporada → carregar apenas esses episódios.
-- Detalhes/episódio → `PlayerActivity`, não exportada, com orientação `sensorLandscape`.
-- A Activity isolada utiliza o mesmo `PlayerScreen` Compose e devolve automaticamente a orientação ao catálogo ao sair. Não são passados URLs por Intent: apenas identificadores que serão novamente resolvidos.
-- Definições → `legal/privacy` e `legal/terms`.
+- Detalhes de série → primeira temporada regular (ou especiais se for a única) → carregar apenas esses episódios. A folha de temporadas permite pesquisa e troca; até três respostas de metadados ficam em cache da ViewModel, removidas ao recarregar o detalhe.
+- Detalhes/episódio → `PlayerActivity`, não exportada, sem orientação forçada: o iframe ocupa a superfície disponível em retrato/paisagem.
+- A Activity isolada utiliza o mesmo `PlayerScreen` Compose, sem alterar a orientação do catálogo. Não são passados URLs por Intent: apenas identificadores que serão novamente resolvidos.
+- Detalhes/episódio/player → folha de partilha → chooser Android com texto público validado.
+- Definições → `legal/privacy`, `legal/terms` e folha local de segurança/assinatura.
 - Voltar no leitor sai primeiro do fullscreen do fornecedor, depois do modo expandido, depois da Activity.
 
 ## 4. Modelo de dados
@@ -76,6 +79,8 @@ Barra inferior: **Início → Explorar → Pesquisa → Minha lista → Definiç
 - `SearchEntry` é representada pelo `SearchEntity` local e exposta como consultas ordenadas.
 - `VideoSource`, `VideoSourceType.IFRAME`: contrato solicitado, sem ficheiros ou streams.
 - `Page`, `DiscoverFilters`, `HomeFeed`, `CatalogSection`, `SearchResult`.
+- `SharePayload`/`MediaSharing`: links públicos TMDB/MyEmbed validados, sem media ou token.
+- `PlaybackBlock`: motivo, domínio, esquema e porta; o construtor privado impede retenção acidental do URL bruto no estado/relatório.
 
 Room guarda snapshots mínimos dos conteúdos para mostrar a biblioteca mesmo sem rede. O esquema v1 é exportado por KSP para `app/schemas` na primeira build. Alterações posteriores exigem migração explícita e testes; não existe `fallbackToDestructiveMigration`.
 
@@ -124,7 +129,7 @@ Wrapper local HTTPS com WebViewAssetLoader e um iframe real, CSP restritiva, sem
 └──────────────────────────────────────────────────────┘
 ```
 
-Estado inicial de resolução de metadados, indisponibilidade, consentimento, carregamento do wrapper, erro de rede/TLS/renderização e bloqueio de segurança. A página carregada não é confundida com um vídeo iniciado. Ecrãs de erro e diálogos têm scroll para acomodar orientação horizontal e letras maiores.
+Estado inicial de resolução de metadados, indisponibilidade, consentimento, carregamento do wrapper, erro de rede/TLS/renderização e bloqueio de segurança com diagnóstico de origem copiável/partilhável por gesto explícito. A origem observada nunca se torna autorizada por causa disso. A página carregada não é confundida com um vídeo iniciado. Ecrãs de erro e diálogos têm scroll para acomodar orientação horizontal e letras maiores.
 
 Sem slider de progresso, selector de qualidade/legendas ou botões falsos. O modo expandido funciona sobre a superfície WebView; fullscreen de vídeo vem de `onShowCustomView`. No segundo plano o iframe é destruído e o regresso recarrega a sessão; não há reprodução de fundo nem PiP nativo implícito.
 
@@ -152,3 +157,13 @@ Sem anúncios próprios, SDK de pagamento, analytics ou ExoPlayer para o embed. 
 ## 12. Testes
 
 Ver [testing.md](testing.md): testes de fornecedor e URLs, wrapper iframe, filtros, mapeamentos, Retrofit/MockWebServer, debounce/cancelamento, Room, navegação e WebView. Fontes estáticas e sintaxe são verificadas separadamente da compilação. O template de CI em `docs/ci/android.yml.example` usa demonstração e não necessita de chaves; fica inactivo até ser instalado por um responsável com permissão de escrita de workflows, por decisão do proprietário. Testes reais do fornecedor devem ser manuais, em dispositivo e com conteúdo autorizado.
+
+## Revisão visual e de transparência 0.2.0
+
+O plano prévio e os limites estão em [player-design-plan.md](player-design-plan.md). O tema usa preto/carvão, marfim e cereja, sem copiar a marca Netflix. Cartazes e stills reais continuam a vir da TMDB; fallback abstracto/demo é explícito. Filtros do início só filtram o feed já carregado, e isso é indicado; Explorar é o catálogo paginado. A biblioteca mostra contagens reais de flags locais.
+
+Os detalhes separam Episódios/Sobre/Mais títulos. Trocar de temporada cancela a anterior, verifica cancelamento antes de publicar e oferece repetição de erro sem fallback demo. Especiais conservam metadados, mas não inventam uma rota de reprodução. A marcação de visto é manual.
+
+`readAppIdentity` usa o PackageManager apenas para o próprio pacote e fingerprints SHA-256 públicos, em IO, com fallback de API 24 e API 28+ guardada. Não enumera outras apps nem lê chaves privadas. A folha de segurança não faz análise antivírus nem certifica a aplicação; mantém a recomendação de investigar o Play Protect sem o desactivar.
+
+Esta revisão mantém as dependências, minSdk 24, desugaring, compile/target 35, fornecedor e allowlist exacta. A versão de fontes passa a 0.2.0/código 2 para distinguir o APK a investigar. Não altera workflows, assinatura ou token. Ver [testing.md](testing.md) para resultados locais versus validação Android pendente.

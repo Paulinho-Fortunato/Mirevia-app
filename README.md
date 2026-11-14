@@ -2,21 +2,25 @@
 
 Aplicação Android pessoal e não comercial para descobrir filmes e séries, consultar a TMDB e organizar uma biblioteca local. **Kotlin · Jetpack Compose · MVVM · Room · TMDB · iframe EmbedMovies**.
 
-Interface em português, tema escuro com destaque verde-menta, ícones vectoriais e sem emojis. Não existem subscrições, pagamentos, publicidade própria, downloads ou extracção de vídeos.
+Interface em português, identidade cinematográfica Mirevia (carvão, marfim e acento cereja), ícones vectoriais e sem emojis. Não existem subscrições, pagamentos, publicidade própria, downloads ou extracção de vídeos.
 
-> **Estado da entrega:** fontes Android, testes e documentação implementados. Foram executados 22 testes JVM do domínio/fornecedor/iframe e verificações de fontes/sintaxe. **Ainda não foi validada a build Android nem gerado um APK neste ambiente**: faltam SDK/emulador e o acesso à distribuição Gradle falhou na rede restrita. Reprodução real requer validação num dispositivo e confirmação de eventuais hosts de recursos do fornecedor.
+> **Revisão 0.2.0:** redesign, selecção de episódios, partilha e diagnóstico de origens implementados nas fontes. **37 testes JVM passaram** e **81 ficheiros Kotlin passaram a verificação de sintaxe**. O proprietário reportou conseguir instalar a versão anterior, mas **esta revisão ainda não foi compilada/instalada aqui**: faltam SDK/emulador e acesso normal aos repositórios Android. A reprodução está bloqueada por uma origem ainda não identificada/aprovada; não se promete que já funciona. O alerta do Google Play Protect precisa do texto exacto e da análise do APK, não deve ser ignorado. Ver [guia de diagnóstico](docs/player-troubleshooting.md).
 
 ## Funcionalidades
 
 - Início com destaque, populares, tendências, melhores avaliações, lançamentos e recomendações por título quando a TMDB está configurada.
 - Explorar com tipo, género, ano, avaliação e idioma original; paginação e lazy loading.
 - Pesquisa de filmes, séries, actores e realizadores, com debounce, cancelamento, paginação e histórico local.
-- Detalhes, elenco, realizadores, criadores, filmografia, temporadas e episódios carregados a pedido.
+- Detalhes cinematográficos com separadores; elenco, realização, filmografia e recomendações.
+- Selector de temporadas pesquisável, stills dos episódios, sinopse expansível e vistos manuais; só a temporada seleccionada carrega episódios, com cache de até três temporadas em memória.
 - Trailers identificados como oficiais pela TMDB, abertos na plataforma original após confirmação.
 - Lista pessoal, favoritos, vistos e episódios vistos em Room.
-- Histórico de players abertos e “Continuar a ver” **sem percentagens/progresso inventados**.
+- “Players recentes” e histórico local **sem percentagens, progresso ou retoma inventados**.
 - `VideoSourceProvider`, `EmbedMoviesProvider`, `SecureEmbedWebView` e `PlayerScreen`.
-- Iframe oficial, consentimento prévio, fullscreen, repetição e mensagens de erro/indisponibilidade.
+- Iframe oficial responsivo em retrato/paisagem, consentimento prévio, fullscreen e erro/indisponibilidade.
+- Diagnóstico local do domínio/esquema bloqueado, sem guardar URLs de recursos, queries ou tokens; nenhuma autorização automática.
+- Partilha Android do título/página TMDB ou link MyEmbed validado, incluindo o episódio; não partilha ficheiros de vídeo.
+- Identidade pública do pacote, permissões e certificados em Definições → Segurança e assinatura do APK; não é um selo de segurança.
 - Preferências DataStore, redução de animações, documentos legais editáveis e atribuição TMDB.
 - Modo de demonstração local, claramente identificado, sem reprodução.
 
@@ -80,11 +84,11 @@ Episódio:    https://myembed.biz/serie/{tmdbId}/{season}/{episode}
 
 O player é incorporado numa página local HTTPS com um `<iframe>` real. Não é carregado em ExoPlayer, não são extraídos URLs, não há downloads, conversão, remoção de publicidade ou contorno de DRM/paywalls/CAPTCHA/bloqueios geográficos.
 
-**Uma URL válida não garante conteúdo disponível.** Hosts de CDNs, scripts, anúncios ou outros recursos não confirmados podem impedir a sessão. A allowlist não é alargada automaticamente. Consultar [docs/provider-integration.md](docs/provider-integration.md) antes de alterar a integração.
+**Uma URL válida não garante conteúdo disponível.** Hosts de CDNs, scripts, anúncios ou outros recursos não confirmados podem impedir a sessão. A allowlist não é alargada automaticamente. O novo diagnóstico mostra apenas a origem para ser confirmada com o fornecedor. Consultar [docs/player-troubleshooting.md](docs/player-troubleshooting.md) e [docs/provider-integration.md](docs/provider-integration.md) antes de alterar a integração.
 
 - Temporada isolada e especiais/temporada 0 não têm formato de reprodução confirmado; não são inventadas rotas.
 - PiP Android, posição, duração e conclusão automática **não são anunciados nem simulados**, por falta de contrato oficial de eventos. O iframe mantém os seus controlos originais.
-- “Continuar a ver” volta ao conteúdo/episódio aberto, não promete retoma ao segundo.
+- “Players recentes” volta ao conteúdo/episódio aberto, não promete retoma ao segundo.
 - Abrir no navegador é opcional e leva ao **playground oficial com iframe**, com indicação do ID, nunca a um stream directo.
 - Ao ir para segundo plano, o WebView é destruído; ao regressar, a sessão é recarregada.
 
@@ -120,7 +124,7 @@ python3 scripts/verify_source.py       # Python 3.11+, sem SDK
 ./gradlew :app:connectedDebugAndroidTest  # dispositivo/emulador
 ```
 
-[docs/testing.md](docs/testing.md) distingue testes executados, testes escritos e validações pendentes. `docs/ci/android.yml.example` prepara validação em demonstração, sem segredos; `docs/ci/build-apk.yml.example` prepara a geração manual de um APK pessoal com o token TMDB embutido. Os dois exemplos continuam inactivos nessa pasta; **o workflow pessoal `.github/workflows/build-apk.yml` já está instalado e é manual**. A configuração do secret, a instalação opcional do CI de demonstração e a correcção da falha de SDK `tools` estão em [docs/ci/README.md](docs/ci/README.md). Ainda não foi concluída uma build remota com sucesso.
+[docs/testing.md](docs/testing.md) distingue testes executados, testes escritos e validações pendentes. `docs/ci/android.yml.example` prepara validação em demonstração, sem segredos; `docs/ci/build-apk.yml.example` prepara a geração manual de um APK pessoal com o token TMDB embutido. Os dois exemplos continuam inactivos nessa pasta; **o workflow pessoal `.github/workflows/build-apk.yml` já está instalado e é manual**. A configuração do secret, a instalação opcional do CI de demonstração e a correcção da falha de SDK `tools` estão em [docs/ci/README.md](docs/ci/README.md). A instalação da versão anterior foi reportada pelo proprietário; o log e a revisão exacta dessa build não foram fornecidos. A build desta revisão e os testes de dispositivo continuam pendentes.
 
 ## Estrutura e documentos
 
@@ -133,6 +137,8 @@ python3 scripts/verify_source.py       # Python 3.11+, sem SDK
 | `docs/tmdb.md` | Endpoints oficiais, configuração, cache e atribuição |
 | `docs/provider-integration.md` | Documentação consultada, URLs, capacidades e limitações |
 | `docs/security.md` | Políticas reais e limites de segurança da WebView |
+| `docs/player-troubleshooting.md` | Diagnóstico do player, partilha e investigação segura do Play Protect |
+| `docs/player-design-plan.md` | Plano da revisão visual e dos episódios, apresentado antes de programar |
 | `docs/testing.md` | Testes, resultados e plano de validação em dispositivo |
 | `docs/ci/` | Templates inactivos de validação e APK instalável, com instruções de activação e secrets |
 | `app/src/main/assets/privacy.txt` | Política de privacidade editável |

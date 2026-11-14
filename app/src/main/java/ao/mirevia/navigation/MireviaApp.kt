@@ -37,7 +37,10 @@ import ao.mirevia.ui.library.*
 import ao.mirevia.ui.person.*
 import ao.mirevia.ui.search.*
 import ao.mirevia.ui.settings.*
+import ao.mirevia.ui.theme.Accent
+import ao.mirevia.ui.theme.Ink
 import ao.mirevia.ui.theme.MireviaTheme
+import ao.mirevia.ui.theme.Muted
 
 private data class Tab(
     val route: String,
@@ -107,32 +110,45 @@ fun MireviaApp(container: AppContainer) {
             },
             bottomBar = {
                 if (tabs.any { it.route == currentRoute })
-                    NavigationBar {
-                        tabs.forEach { item ->
-                            val selected = currentRoute == item.route
-                            NavigationBarItem(
-                                selected = selected,
-                                onClick = { tab(item.route) },
-                                icon = {
-                                    Icon(if (selected) item.selectedIcon else item.icon, null)
-                                },
-                                label = {
-                                    Text(
-                                        item.label,
-                                        maxLines = 2,
-                                        style =
-                                            MaterialTheme.typography.labelSmall.copy(
-                                                letterSpacing = 0.sp
-                                            ),
-                                    )
-                                },
-                                modifier =
-                                    Modifier.semantics {
-                                        contentDescription = item.label
-                                        stateDescription =
-                                            if (selected) "Seleccionado" else "Não seleccionado"
+                    Column {
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                        NavigationBar(containerColor = Ink, tonalElevation = 0.dp) {
+                            tabs.forEach { item ->
+                                val selected = currentRoute == item.route
+                                NavigationBarItem(
+                                    selected = selected,
+                                    onClick = { tab(item.route) },
+                                    colors =
+                                        NavigationBarItemDefaults.colors(
+                                            selectedIconColor = Accent,
+                                            selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                                            unselectedIconColor = Muted,
+                                            unselectedTextColor = Muted,
+                                            indicatorColor = Accent.copy(alpha = 0.12f),
+                                        ),
+                                    icon = {
+                                        Icon(if (selected) item.selectedIcon else item.icon, null)
                                     },
-                            )
+                                    label = {
+                                        Text(
+                                            item.label,
+                                            maxLines = 2,
+                                            style =
+                                                MaterialTheme.typography.labelSmall.copy(
+                                                    letterSpacing = 0.sp
+                                                ),
+                                        )
+                                    },
+                                    modifier =
+                                        Modifier.semantics {
+                                            contentDescription = item.label
+                                            stateDescription =
+                                                if (selected) "Seleccionado" else "Não seleccionado"
+                                        },
+                                )
+                            }
                         }
                     }
             },
@@ -236,12 +252,13 @@ fun MireviaApp(container: AppContainer) {
                                     }
                             )
                         DetailsScreen(
-                            vm,
-                            library,
-                            { navigation.popBackStack() },
-                            ::details,
-                            ::person,
-                            ::play,
+                            viewModel = vm,
+                            library = library,
+                            policy = container.embedPolicy,
+                            onBack = { navigation.popBackStack() },
+                            onDetails = ::details,
+                            onPerson = ::person,
+                            onPlay = ::play,
                         )
                     }
                 }

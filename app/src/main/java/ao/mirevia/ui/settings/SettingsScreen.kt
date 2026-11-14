@@ -5,10 +5,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -39,6 +39,7 @@ fun SettingsScreen(container: AppContainer, library: LibraryViewModel, onLegal: 
     val context = LocalContext.current
     var clearDialog by remember { mutableStateOf<String?>(null) }
     var settingError by remember { mutableStateOf(false) }
+    var securitySheet by remember { mutableStateOf(false) }
     fun update(block: suspend () -> Unit) {
         coroutineScope.launch {
             try {
@@ -76,7 +77,7 @@ fun SettingsScreen(container: AppContainer, library: LibraryViewModel, onLegal: 
                     )
                     Text(
                         container.connectionLabel,
-                        color = Mint,
+                        color = Accent,
                         style = MaterialTheme.typography.bodySmall,
                     )
                     Text(
@@ -143,6 +144,9 @@ fun SettingsScreen(container: AppContainer, library: LibraryViewModel, onLegal: 
         item {
             Column {
                 SectionLabel("Privacidade e utilização")
+                SettingsAction("Segurança e assinatura do APK", Icons.Outlined.Security) {
+                    securitySheet = true
+                }
                 SettingsAction("Política de privacidade", Icons.Outlined.PrivacyTip) {
                     onLegal("privacy")
                 }
@@ -187,7 +191,11 @@ fun SettingsScreen(container: AppContainer, library: LibraryViewModel, onLegal: 
                     }
                 ) {
                     Text("Visitar a TMDB")
-                    Icon(Icons.Outlined.OpenInNew, null, Modifier.padding(start = 8.dp).size(16.dp))
+                    Icon(
+                        Icons.AutoMirrored.Outlined.OpenInNew,
+                        null,
+                        Modifier.padding(start = 8.dp).size(16.dp),
+                    )
                 }
                 Text(
                     "Fornecedor externo: EmbedMovies",
@@ -242,6 +250,7 @@ fun SettingsScreen(container: AppContainer, library: LibraryViewModel, onLegal: 
             dismissButton = { TextButton(onClick = { clearDialog = null }) { Text("Cancelar") } },
         )
     }
+    if (securitySheet) AppSecuritySheet { securitySheet = false }
     if (settingError)
         AlertDialog(
             onDismissRequest = { settingError = false },
@@ -260,7 +269,7 @@ private fun SectionLabel(text: String) {
     Text(
         text,
         Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-        color = Mint,
+        color = Accent,
         style = MaterialTheme.typography.titleMedium,
     )
 }

@@ -27,7 +27,15 @@ fun ExploreScreen(viewModel: ExploreViewModel, isDemo: Boolean, onDetails: (Medi
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) {
-            ScreenHeader("Explorar", "Encontra histórias à tua medida")
+            Column(Modifier.fillMaxWidth()) {
+                ScreenHeader("Explorar", "Encontra histórias à tua medida")
+                Text(
+                    "Um catálogo inteiro. O teu próximo favorito.",
+                    color = Muted,
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+            }
         }
         if (isDemo) item(span = { GridItemSpan(maxLineSpan) }) { DemoBanner() }
         item(span = { GridItemSpan(maxLineSpan) }) {

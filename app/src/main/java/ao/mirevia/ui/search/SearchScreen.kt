@@ -25,6 +25,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ao.mirevia.core.model.*
 import ao.mirevia.ui.components.*
 import ao.mirevia.ui.library.LibraryViewModel
+import ao.mirevia.ui.theme.Accent
 import ao.mirevia.ui.theme.Muted
 import coil3.compose.AsyncImage
 
@@ -64,6 +65,13 @@ fun SearchScreen(
                 },
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp),
+                colors =
+                    OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                        focusedBorderColor = Accent,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                    ),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { viewModel.search(true) }),
             )
@@ -190,8 +198,11 @@ fun MediaSearchRow(
 ) {
     Row(
         Modifier.fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 3.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surface)
             .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 7.dp),
+            .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {

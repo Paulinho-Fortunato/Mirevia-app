@@ -10,6 +10,8 @@ import android.view.View
 import android.webkit.*
 import androidx.webkit.*
 import ao.mirevia.core.playback.EmbedUrlPolicy
+import ao.mirevia.core.playback.PlaybackBlock
+import ao.mirevia.core.playback.PlaybackBlockKind
 import ao.mirevia.core.playback.VideoSource
 import java.io.ByteArrayInputStream
 
@@ -23,7 +25,7 @@ class SecureEmbedWebView(
     val sessionToken: Long,
     private val onWrapperLoaded: () -> Unit,
     private val onFailure: () -> Unit,
-    private val onSecurityBlocked: (String) -> Unit,
+    private val onSecurityBlocked: (PlaybackBlock) -> Unit,
     autoLoad: Boolean = true,
 ) : WebView(context) {
     @Volatile private var released = false
@@ -78,7 +80,7 @@ class SecureEmbedWebView(
         }
         configureServiceWorkers()
         setDownloadListener { _, _, _, _, _ ->
-            block("A Mirevia não permite downloads nem a abertura de ficheiros de vídeo.")
+            block(PlaybackBlock.local(PlaybackBlockKind.DOWNLOAD))
         }
         webViewClient =
             object : WebViewClient() {
@@ -90,10 +92,7 @@ class SecureEmbedWebView(
                     val allowed =
                         if (request.isForMainFrame) url == EmbedPage.URL
                         else policy.isAllowedNavigation(url)
-                    if (!allowed)
-                        block(
-                            "Foi bloqueada uma navegação não autorizada. O conteúdo deve permanecer no iframe aprovado."
-                        )
+                    if (!allowed) block(PlaybackBlock.request(PlaybackBlockKind.NAVIGATION, url))
                     return !allowed
                 }
 
@@ -105,7 +104,7 @@ class SecureEmbedWebView(
                 override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
                     if (url != EmbedPage.URL) {
                         stopLoading()
-                        block("O player tentou sair da página de incorporação autorizada.")
+                        block(PlaybackBlock.request(PlaybackBlockKind.NAVIGATION, url))
                     }
                 }
 
@@ -153,7 +152,9 @@ class SecureEmbedWebView(
                     callback: SafeBrowsingResponse,
                 ) {
                     callback.backToSafety(true)
-                    block("O Android identificou uma navegação insegura e bloqueou-a.")
+                    block(
+                        PlaybackBlock.request(PlaybackBlockKind.UNSAFE_PAGE, request.url.toString())
+                    )
                 }
 
                 @androidx.annotation.RequiresApi(26)
@@ -183,9 +184,7 @@ class SecureEmbedWebView(
                     isUserGesture: Boolean,
                     resultMsg: Message,
                 ): Boolean {
-                    block(
-                        "Foi bloqueada uma janela externa que não pode ser validada em segurança."
-                    )
+                    block(PlaybackBlock.local(PlaybackBlockKind.NEW_WINDOW))
                     return false
                 }
 
@@ -216,15 +215,13 @@ class SecureEmbedWebView(
     }
 
     private fun filterRequest(request: WebResourceRequest): WebResourceResponse? {
-        if (released) return deniedResponse()
+        if (released || securityFailureReported.get()) return deniedResponse()
         val url = request.url.toString()
         if (url == EmbedPage.URL)
             return assetLoader.shouldInterceptRequest(request.url) ?: deniedResponse()
         if (policy.isAllowedNavigation(url))
             return null // Let WebView fetch normally; never read or extract a response.
-        block(
-            "O player pediu um recurso de um domínio ou esquema não autorizado. A sessão foi interrompida por segurança."
-        )
+        block(PlaybackBlock.request(PlaybackBlockKind.RESOURCE, url))
         return deniedResponse()
     }
 
@@ -255,15 +252,18 @@ class SecureEmbedWebView(
                 }
             )
         } else {
-            block(
-                "Actualiza o Android System WebView. Esta versão não permite aplicar a política de segurança necessária aos service workers."
-            )
+            block(PlaybackBlock.local(PlaybackBlockKind.WEBVIEW_FEATURE))
         }
     }
 
-    private fun block(message: String) {
+    private fun block(diagnostic: PlaybackBlock) {
         if (!released && securityFailureReported.compareAndSet(false, true)) {
-            post { if (!released) onSecurityBlocked(message) }
+            post {
+                if (!released) {
+                    stopLoading()
+                    onSecurityBlocked(diagnostic)
+                }
+            }
         }
     }
 

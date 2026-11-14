@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
@@ -26,12 +28,15 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ao.mirevia.R
 import ao.mirevia.app.AppContainer
+import ao.mirevia.core.model.SharePayload
 import ao.mirevia.data.local.UserPreferences
 import ao.mirevia.playback.*
 import ao.mirevia.ui.components.*
 import ao.mirevia.ui.theme.*
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun PlayerScreen(
     viewModel: PlayerViewModel,
@@ -54,6 +59,13 @@ fun PlayerScreen(
     }
     var externalDialog by remember { mutableStateOf(false) }
     var externalError by remember { mutableStateOf(false) }
+    var shareTarget by remember { mutableStateOf<ShareTarget?>(null) }
+    var information by remember { mutableStateOf(false) }
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    fun feedback(message: String) {
+        scope.launch { snackbar.showSnackbar(message) }
+    }
     DisposableEffect(lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
@@ -120,7 +132,8 @@ fun PlayerScreen(
         }
     }
     MireviaTheme(preferences?.reduceMotion ?: false, networkAvailable = online) {
-        Box(Modifier.fillMaxSize().background(Color.Black)) {
+        BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black)) {
+            val compact = maxHeight < 440.dp
             Column(Modifier.fillMaxSize().safeDrawingPadding()) {
                 if (!expanded)
                     Row(
@@ -130,11 +143,33 @@ fun PlayerScreen(
                         IconButton(onClick = onExit) {
                             Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Voltar")
                         }
-                        Text(
-                            state.details?.media?.title ?: "Reprodução",
-                            Modifier.weight(1f),
-                            style = MaterialTheme.typography.titleMedium,
-                        )
+                        Column(Modifier.weight(1f).padding(vertical = 8.dp)) {
+                            Text(
+                                state.details?.media?.title ?: "Reprodução",
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                viewModel.episodeLabel ?: "EMBEDMOVIES · IFRAME EXTERNO",
+                                color = Muted,
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        }
+                        state.details
+                            ?.media
+                            ?.takeUnless { it.isDemo }
+                            ?.let { media ->
+                                IconButton(
+                                    onClick = { shareTarget = ShareTarget(media, state.source) }
+                                ) {
+                                    Icon(Icons.Outlined.Share, "Partilhar título ou link MyEmbed")
+                                }
+                            }
+                        if (compact)
+                            IconButton(onClick = { information = true }) {
+                                Icon(Icons.Outlined.Info, "Informação do player externo")
+                            }
                         if (state.source?.supportsFullscreen == true)
                             IconButton(onClick = { expanded = true }) {
                                 Icon(Icons.Outlined.Fullscreen, "Expandir ecrã do player")
@@ -181,22 +216,43 @@ fun PlayerScreen(
                                 }
                             }
                         PlayerPhase.BLOCKED ->
-                            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                                StatusPanel(
-                                    "Navegação bloqueada",
-                                    state.reason
-                                        ?: "O player tentou contactar uma origem não autorizada.",
-                                    icon = Icons.Outlined.Security,
-                                    action = "Repetir carregamento",
-                                    onAction = viewModel::retry,
-                                )
-                                Text(
-                                    "Não foram criadas fontes alternativas nem desactivadas protecções do fornecedor.",
-                                    Modifier.padding(horizontal = 28.dp),
-                                    color = Muted,
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                            }
+                            PlaybackBlockPanel(
+                                block = state.block,
+                                policy = container.embedPolicy,
+                                onRetry = viewModel::retry,
+                                onCopy = {
+                                    state.block?.let {
+                                        val copied =
+                                            copyPublicText(
+                                                context,
+                                                SharePayload(
+                                                    "Diagnóstico do iframe",
+                                                    it.report(container.embedPolicy),
+                                                ),
+                                            )
+                                        feedback(
+                                            if (copied)
+                                                "Diagnóstico copiado, sem URLs de recursos ou tokens."
+                                            else "Não foi possível copiar."
+                                        )
+                                    }
+                                },
+                                onShare = {
+                                    state.block?.let {
+                                        if (
+                                            !sharePublicText(
+                                                context,
+                                                SharePayload(
+                                                    "Diagnóstico do iframe",
+                                                    it.report(container.embedPolicy),
+                                                ),
+                                            )
+                                        )
+                                            feedback("Não foi possível abrir a folha de partilha.")
+                                    }
+                                },
+                                modifier = Modifier.fillMaxSize(),
+                            )
                         PlayerPhase.AVAILABLE -> {
                             val source = state.source
                             when {
@@ -277,11 +333,12 @@ fun PlayerScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.error,
                             )
-                        Text(
-                            stringResource(R.string.external_player_notice),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Muted,
-                        )
+                        if (!compact)
+                            Text(
+                                stringResource(R.string.external_player_notice),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Muted,
+                            )
                         state.storageNotice?.let {
                             Text(
                                 it,
@@ -289,7 +346,7 @@ fun PlayerScreen(
                                 color = MaterialTheme.colorScheme.error,
                             )
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             if (state.phase == PlayerPhase.AVAILABLE) {
                                 TextButton(onClick = viewModel::retry) {
                                     Icon(Icons.Outlined.Refresh, null, Modifier.size(16.dp))
@@ -302,7 +359,11 @@ fun PlayerScreen(
                             }
                             if (preferences?.externalBrowser == true && state.source != null)
                                 TextButton(onClick = { externalDialog = true }) {
-                                    Icon(Icons.Outlined.OpenInNew, null, Modifier.size(16.dp))
+                                    Icon(
+                                        Icons.AutoMirrored.Outlined.OpenInNew,
+                                        null,
+                                        Modifier.size(16.dp),
+                                    )
                                     Spacer(Modifier.width(6.dp))
                                     Text("Página oficial")
                                 }
@@ -316,6 +377,7 @@ fun PlayerScreen(
                 ) {
                     Icon(Icons.Outlined.FullscreenExit, "Sair do ecrã expandido")
                 }
+            SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).safeDrawingPadding())
             fullscreen.customView?.let { customView ->
                 AndroidView(
                     factory = {
@@ -326,6 +388,26 @@ fun PlayerScreen(
                 )
             }
         }
+        shareTarget?.let { target ->
+            MediaShareSheet(target, container.embedPolicy) { shareTarget = null }
+        }
+        if (information)
+            AlertDialog(
+                onDismissRequest = { information = false },
+                title = { Text("Player externo") },
+                text = {
+                    Column(
+                        Modifier.verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text(stringResource(R.string.external_player_notice))
+                        Text(
+                            "Os controlos, anúncios e disponibilidade pertencem ao fornecedor. Não existe medição de progresso ou PiP nativo Android. Ao sair, o iframe é destruído; voltar a abri-lo não retoma uma posição verificada."
+                        )
+                    }
+                },
+                confirmButton = { TextButton(onClick = { information = false }) { Text("Fechar") } },
+            )
         if (
             state.phase == PlayerPhase.AVAILABLE &&
                 preferences != null &&

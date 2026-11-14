@@ -9,6 +9,7 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -16,6 +17,7 @@ import ao.mirevia.core.model.*
 import ao.mirevia.ui.components.ScreenHeader
 import ao.mirevia.ui.components.StatusPanel
 import ao.mirevia.ui.search.MediaSearchRow
+import ao.mirevia.ui.theme.Accent
 import ao.mirevia.ui.theme.Muted
 import java.time.Instant
 import java.time.ZoneId
@@ -52,6 +54,39 @@ fun LibraryScreen(viewModel: LibraryViewModel, onDetails: (MediaKey) -> Unit) {
                     color = MaterialTheme.colorScheme.error,
                 )
             }
+        item {
+            Surface(
+                Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surface,
+            ) {
+                Row(Modifier.padding(18.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    listOf(
+                            entries.count { it.watchlisted } to "Na lista",
+                            entries.count { it.favorite } to "Favoritos",
+                            entries.count { it.watched } to "Vistos",
+                        )
+                        .forEach { (count, label) ->
+                            Column(
+                                Modifier.weight(1f),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Text(
+                                    count.toString(),
+                                    color = Accent,
+                                    style = MaterialTheme.typography.headlineMedium,
+                                )
+                                Text(
+                                    label,
+                                    color = Muted,
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
+                        }
+                }
+            }
+        }
         item {
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 20.dp),
