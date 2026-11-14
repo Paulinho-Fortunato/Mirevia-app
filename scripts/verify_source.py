@@ -46,6 +46,13 @@ for path in sources:
     require(not re.search(r'[\U0001f000-\U0001faff\u2600-\u27bf]', content), f'Emoji in interface source: {path}')
     require(not re.search(r'\b(?:TODO|FIXME)\s*\(', content), f'Unimplemented code in {path}')
 
+# Regressions reported by the real Android Kotlin compiler, not caught by syntax-only checks.
+player_activity = (ROOT / 'app/src/main/java/ao/mirevia/playback/PlayerActivity.kt').read_text()
+require(not re.search(r'\bfun\s+setImmersive\s*\(', player_activity), 'Do not shadow Activity.setImmersive; use a player-specific system-bars helper')
+require('private fun setPlayerImmersiveMode(' in player_activity and '::setPlayerImmersiveMode' in player_activity, 'Keep the player system-bars helper and callback reference consistent')
+search_screen = (ROOT / 'app/src/main/java/ao/mirevia/ui/search/SearchScreen.kt').read_text()
+require(re.search(r'MediaSearchRow\(\s*media\s*=\s*result\.media,\s*onClick\s*=', search_screen), 'Bind the search result callback explicitly to MediaSearchRow.onClick; subtitle is the last parameter')
+
 webview = (ROOT / 'app/src/main/java/ao/mirevia/playback/SecureEmbedWebView.kt').read_text()
 for required in ['handler.cancel()', 'allowFileAccess = false', 'allowContentAccess = false', 'MIXED_CONTENT_NEVER_ALLOW', 'setAcceptThirdPartyCookies(this@SecureEmbedWebView, false)', 'request.deny()', 'removeAllCookies', 'WebView.setWebContentsDebuggingEnabled(false)']:
     require(required in webview, f'Missing WebView restriction: {required}')
@@ -76,7 +83,24 @@ for required in ['secrets.TMDB_READ_TOKEN', "TMDB_PROXY_BASE_URL: ''", 'cache-di
 require('pull_request_target' not in apk_workflow, 'Do not execute untrusted PR code with the APK secret')
 demo_workflow = (ROOT / 'docs/ci/android.yml.example').read_text()
 require('api: [24, 35]' in demo_workflow and 'api-level: ${{ matrix.api }}' in demo_workflow, 'Include Android 7.0 in the emulator test matrix')
+# setup-android@v3 defaults to "tools platform-tools"; the legacy tools package is gone.
+workflow_paths = [ROOT / 'docs/ci/android.yml.example', ROOT / 'docs/ci/build-apk.yml.example']
+workflow_paths += sorted((ROOT / '.github/workflows').glob('*.yml'))
+workflow_paths += sorted((ROOT / '.github/workflows').glob('*.yaml'))
+sdk_setup_count = 0
+for path in workflow_paths:
+    for step in re.split(r'(?m)^      - ', path.read_text()):
+        if not re.search(r'(?m)^\s*uses:\s*android-actions/setup-android@', step):
+            continue
+        package_input = re.search(r'(?m)^          packages:\s*([^\n#]+)', step)
+        require(package_input, f'Override the legacy SDK tools default in {path.relative_to(ROOT)}')
+        packages = package_input.group(1).strip().strip("\"'").split()
+        require(packages == ['platform-tools'], f'Use only platform-tools in SDK setup; install the pinned platform/build-tools separately: {path.relative_to(ROOT)}')
+        sdk_setup_count += 1
+require(sdk_setup_count >= 3, 'Missing Android SDK setup in CI templates')
+print(f'Android SDK setup: {sdk_setup_count} steps explicitly avoid the removed legacy tools package.')
 print(f'Source checks: {len(sources)} production Kotlin files; XML, TOML, manifest, iframe and security invariants OK.')
+print('Reported Kotlin regressions: player-specific immersive helper and named search onClick present.')
 print('Android 7.0 configuration: minSdk 24, core library desugaring and API 24/35 test matrix present.')
 print('Personal APK template: manual-only, embedded-token build flags and signature check present.')
 print('These checks do not prove compilation, runtime safety or live playback compatibility.')

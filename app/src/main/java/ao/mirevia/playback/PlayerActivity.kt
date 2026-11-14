@@ -41,11 +41,11 @@ class PlayerActivity : ComponentActivity() {
                 viewModel(
                     factory = viewModelFactory { PlayerViewModel(key, season, episode, container) }
                 )
-            PlayerScreen(vm, container, ::finish, ::setImmersive)
+            PlayerScreen(vm, container, ::finish, ::setPlayerImmersiveMode)
         }
     }
 
-    private fun setImmersive(enabled: Boolean) {
+    private fun setPlayerImmersiveMode(enabled: Boolean) {
         WindowCompat.getInsetsController(window, window.decorView).apply {
             systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             if (enabled) hide(WindowInsetsCompat.Type.systemBars())

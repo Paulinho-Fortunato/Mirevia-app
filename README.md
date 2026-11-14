@@ -55,7 +55,7 @@ O valor acima é um marcador, não uma chave. Em alternativa, exporta `TMDB_READ
 
 ### APK pessoal com a TMDB embutida, sem backend
 
-O workflow completo está em [`docs/ci/build-apk.yml.example`](docs/ci/build-apk.yml.example). Publica-o como `.github/workflows/build-apk.yml` através de uma conta autorizada e configura o secret de repositório **`TMDB_READ_TOKEN`** com o teu API Read Access Token. Depois executa-o manualmente em Actions e, se a build for bem-sucedida, descarrega o artefacto `Mirevia-APK`, extrai o ZIP e instala `Mirevia.apk`.
+O workflow pessoal activo está em [`.github/workflows/build-apk.yml`](.github/workflows/build-apk.yml), com exemplo em [`docs/ci/build-apk.yml.example`](docs/ci/build-apk.yml.example). Configura o secret de repositório **`TMDB_READ_TOKEN`** com o teu API Read Access Token e mantém o YAML actualizado através de uma conta autorizada. Depois executa-o manualmente em Actions e, se a build for bem-sucedida, descarrega o artefacto `Mirevia-APK`, extrai o ZIP e instala `Mirevia.apk`.
 
 É um **APK debug assinado e instalável**. O Gradle já inclui o token nessa variante: não é necessário escrever a credencial no Kotlin nem manter um backend da Mirevia. A API TMDB continua online; embutir o token não transforma o catálogo num serviço offline. **Quem tiver o APK pode extrair o token**, mesmo que ele venha de um GitHub secret. Usa esta opção pessoal apenas aceitando esse risco; um repositório/artefacto público não mantém a credencial privada.
 
@@ -120,7 +120,7 @@ python3 scripts/verify_source.py       # Python 3.11+, sem SDK
 ./gradlew :app:connectedDebugAndroidTest  # dispositivo/emulador
 ```
 
-[docs/testing.md](docs/testing.md) distingue testes executados, testes escritos e validações pendentes. `docs/ci/android.yml.example` prepara validação em demonstração, sem segredos; `docs/ci/build-apk.yml.example` prepara a geração manual de um APK pessoal com o token TMDB embutido. **Os dois templates estão inactivos: não foi instalado um workflow GitHub Actions.** A activação por um responsável autorizado e a configuração do secret do APK estão em [docs/ci/README.md](docs/ci/README.md). Não foi validada uma execução remota destes workflows.
+[docs/testing.md](docs/testing.md) distingue testes executados, testes escritos e validações pendentes. `docs/ci/android.yml.example` prepara validação em demonstração, sem segredos; `docs/ci/build-apk.yml.example` prepara a geração manual de um APK pessoal com o token TMDB embutido. Os dois exemplos continuam inactivos nessa pasta; **o workflow pessoal `.github/workflows/build-apk.yml` já está instalado e é manual**. A configuração do secret, a instalação opcional do CI de demonstração e a correcção da falha de SDK `tools` estão em [docs/ci/README.md](docs/ci/README.md). Ainda não foi concluída uma build remota com sucesso.
 
 ## Estrutura e documentos
 

@@ -1,8 +1,8 @@
-# Templates de CI e APK — inactivos
+# CI e APK — workflow pessoal e templates
 
-Os ficheiros desta pasta são exemplos. Como estão fora de `.github/workflows` e terminam em `.example`, **não são executados automaticamente**. Não foi instalado nenhum workflow activo nesta entrega.
+Os ficheiros desta pasta são exemplos. Como estão fora de `.github/workflows` e terminam em `.example`, **não são executados automaticamente**. Existe agora um workflow pessoal activo em [`.github/workflows/build-apk.yml`](../../.github/workflows/build-apk.yml), instalado posteriormente pelo proprietário, com execução manual.
 
-A publicação anterior de um workflow foi recusada pelo GitHub por falta da permissão `workflows`. O proprietário escolheu receber a configuração como template. A activação continua a exigir um responsável autorizado; não é necessário alterar as permissões para ler ou copiar estes ficheiros.
+A entrega inicial usou templates depois de a publicação ser recusada por falta da permissão `workflows`. Instalar ou actualizar um workflow activo continua a exigir um responsável autorizado; manter o workflow pessoal e o seu exemplo sincronizados.
 
 ## 1. Validação em demonstração
 
@@ -27,9 +27,25 @@ No repositório do GitHub:
 
 **Não coloques o valor no YAML, no Kotlin, num commit ou em chat.** O workflow falha explicitamente quando o secret está vazio ou tem espaços; não gera silenciosamente um APK de demonstração nessa situação. A validade real da credencial só pode ser confirmada pela TMDB; este workflow não promete autenticação bem-sucedida para um valor incorrecto.
 
-### Activar o workflow e obter o APK
+### Falha de SDK: `Failed to find package 'tools'`
 
-Um responsável autorizado deve rever a configuração e publicar o conteúdo de `build-apk.yml.example` em **`.github/workflows/build-apk.yml`**. A branch compilada deve conter também as alterações Android 7.0 do projecto (`minSdk 24`, desugaring, dependência e recursos compatíveis); copiar só o YAML para uma versão antiga com `minSdk 26` não altera o app e faz a verificação do APK falhar. Para copiar localmente:
+`android-actions/setup-android@v3` pede, por omissão, `tools platform-tools`. O pacote legado `tools` não foi encontrado no repositório do SDK na execução reportada. A linha `All SDK package licenses accepted` mostra que essa falha não foi uma recusa das licenças. A mensagem anterior sobre a versão preinstalada apenas precedeu o download da versão de command-line tools configurada pela action.
+
+O workflow activo e os dois templates substituem explicitamente os pacotes adicionais:
+
+```yaml
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+```
+
+O `sdkmanager` já é fornecido por `cmdline-tools`; não é necessário pedir o antigo pacote `tools`. O passo seguinte mantém a instalação de `platforms;android-35` e `build-tools;35.0.0`. Não se ignoram erros de instalação nem se desactiva a aceitação de licenças. Isto não altera `minSdk 24`, a integração TMDB ou as restrições do player.
+
+Depois de publicar a correcção no workflow, inicia uma **nova execução** em **Run workflow**, na branch actualizada. **Re-run jobs** de uma execução antiga volta a usar a revisão dessa execução, sem incorporar a alteração do YAML.
+
+### Executar ou instalar o workflow e obter o APK
+
+O repositório actual já contém **`.github/workflows/build-apk.yml`**. Para o actualizar ou reinstalar, um responsável autorizado deve rever e publicar o conteúdo de `build-apk.yml.example` nesse caminho. A branch compilada deve conter também as alterações Android 7.0 do projecto (`minSdk 24`, desugaring, dependência e recursos compatíveis); copiar só o YAML para uma versão antiga com `minSdk 26` não altera o app e faz a verificação do APK falhar. Para copiar localmente:
 
 ```sh
 mkdir -p .github/workflows
@@ -90,4 +106,4 @@ Cola esse resultado **apenas** no secret `ANDROID_DEBUG_KEYSTORE_BASE64`, nunca 
 
 ## Validação ainda necessária
 
-Os templates não foram executados remotamente nesta sessão e não foi gerado um APK aqui. Consultar [../testing.md](../testing.md) para os testes efectivamente executados e as limitações do ambiente. Uma assinatura válida não comprova o funcionamento da TMDB nem a disponibilidade do iframe; testar ambos num dispositivo depois de instalar.
+A [execução inicial](https://github.com/Paulinho-Fortunato/Mirevia-app/actions/runs/43613022549) falhou no setup do SDK ao pedir `tools`. A [execução posterior](https://github.com/Paulinho-Fortunato/Mirevia-app/actions/runs/43613957749) já passou essa preparação e completou `:core:test`, mas parou na compilação Kotlin Android: conflito do nome `setImmersive` e callback de `MediaSearchRow` passado no argumento errado. Os dois pontos foram corrigidos nas fontes desta branch, mas ainda é necessária uma nova execução com esse código publicado; não foi gerado um APK aqui. Consultar [../testing.md](../testing.md) para os testes efectivamente executados e as limitações do ambiente. Uma assinatura válida não comprova o funcionamento da TMDB nem a disponibilidade do iframe; testar ambos num dispositivo depois de instalar.
