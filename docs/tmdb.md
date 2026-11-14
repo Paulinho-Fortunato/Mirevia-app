@@ -53,6 +53,14 @@ O exemplo acima é um marcador, não uma chave válida. Usa o **API Read Access 
 
 É usado somente na variante debug, mas é recuperável de qualquer APK debug distribuído. `BuildConfig` não é um cofre. A variante release define o token como vazio, mesmo que esteja configurado no ambiente.
 
+### APK pessoal gerado no GitHub, sem backend
+
+O template [`ci/build-apk.yml.example`](ci/build-apk.yml.example) passa o secret **`TMDB_READ_TOKEN`** para `assembleDebug`. A configuração Gradle já existente insere-o no `BuildConfig` do APK e `AppContainer` usa a integração oficial directa com a TMDB. O workflow força `TMDB_PROXY_BASE_URL` vazio; não é necessário configurar ou alojar um backend da Mirevia para esta variante.
+
+O token fica realmente no APK. O secret protege o valor do código-fonte e da configuração pública do workflow, **não de quem recebe o APK**. O modo é pessoal/de teste, não uma solução de protecção de credenciais para distribuição pública. A variante release não foi alterada e continua a definir o token como vazio.
+
+A integração e a credencial ficam no app, mas a API e as imagens continuam online. O workflow valida a presença do secret, não a sua aceitação pela TMDB nem a disponibilidade de conteúdos. Configuração, instalação e assinatura persistente estão em [ci/README.md](ci/README.md).
+
 ### Backend intermediário
 
 Define `TMDB_PROXY_BASE_URL` ou `tmdb.proxyBaseUrl` com a URL HTTPS real do teu backend, terminada em `/3/`. O valor não deve conter credenciais, query string ou fragmentos. Só é aceite a porta TLS padrão.

@@ -25,10 +25,16 @@ Interface em português, tema escuro com destaque verde-menta, ícones vectoriai
 1. Instala Android Studio com suporte a AGP 8.9.2, **JDK 17**, Android SDK Platform **35** e Build Tools 35.0.0.
 2. Abre a **raiz deste repositório** como projecto. Deixa o Android Studio criar `local.properties` com o teu `sdk.dir`.
 3. Sincroniza o Gradle Wrapper 8.11.1. A primeira sincronização precisa de acesso normal a Gradle, Google Maven e Maven Central.
-4. Selecciona a variante **`app:debug`** e um dispositivo/emulador Android **8.0/API 26 ou superior**, com Android System WebView actualizado.
+4. Selecciona a variante **`app:debug`** e um dispositivo/emulador Android **7.0/API 24 ou superior**, com a versão mais recente do Android System WebView disponível para o aparelho.
 5. Executa **Run app**. Sem configuração TMDB, arranca em demonstração; não é necessária uma chave para explorar a interface e a biblioteca local.
 
 A aplicação é Android nativa; não existe uma versão web equivalente ou um servidor localhost a iniciar.
+
+### Compatibilidade Android 7.0+
+
+A versão mínima configurada é **Android 7.0 (API 24)**, incluindo Android 7.1 e versões posteriores. `compileSdk` e `targetSdk` continuam em 35: não são a versão mínima de instalação. O core library desugaring com `desugar_jdk_libs` 2.1.5 fornece as APIs `java.time` usadas nos lançamentos TMDB e nas datas do histórico, que não existem nativamente no Android 7.
+
+O template de APK verifica o `minSdk` do pacote e a assinatura para API 24; o template de validação inclui emuladores API 24 e 35. Estes testes Android ainda não foram executados aqui. A reprodução continua dependente das capacidades do WebView instalado e do fornecedor; o app não reduz as restrições de segurança para fazer um player incompatível funcionar.
 
 ## Configurar TMDB
 
@@ -46,6 +52,14 @@ tmdb.readToken=O_TEU_API_READ_ACCESS_TOKEN
 O valor acima é um marcador, não uma chave. Em alternativa, exporta `TMDB_READ_TOKEN` no terminal antes de executar o Gradle. Não uses o ficheiro `.env` como se fosse carregado automaticamente; o projecto lê variáveis de ambiente e `local.properties`.
 
 **BuildConfig protege o repositório, não o APK.** O token de debug pode ser extraído de um APK partilhado. A variante release não o inclui.
+
+### APK pessoal com a TMDB embutida, sem backend
+
+O workflow completo está em [`docs/ci/build-apk.yml.example`](docs/ci/build-apk.yml.example). Publica-o como `.github/workflows/build-apk.yml` através de uma conta autorizada e configura o secret de repositório **`TMDB_READ_TOKEN`** com o teu API Read Access Token. Depois executa-o manualmente em Actions e, se a build for bem-sucedida, descarrega o artefacto `Mirevia-APK`, extrai o ZIP e instala `Mirevia.apk`.
+
+É um **APK debug assinado e instalável**. O Gradle já inclui o token nessa variante: não é necessário escrever a credencial no Kotlin nem manter um backend da Mirevia. A API TMDB continua online; embutir o token não transforma o catálogo num serviço offline. **Quem tiver o APK pode extrair o token**, mesmo que ele venha de um GitHub secret. Usa esta opção pessoal apenas aceitando esse risco; um repositório/artefacto público não mantém a credencial privada.
+
+Para manter a assinatura entre execuções, podes configurar também `ANDROID_DEBUG_KEYSTORE_BASE64`. Sem uma chave persistente, uma nova build pode não actualizar a anterior, e desinstalar apaga os dados locais. As instruções e os cuidados estão em [docs/ci/README.md](docs/ci/README.md).
 
 ### Backend intermediário (recomendado para distribuir)
 
@@ -106,7 +120,7 @@ python3 scripts/verify_source.py       # Python 3.11+, sem SDK
 ./gradlew :app:connectedDebugAndroidTest  # dispositivo/emulador
 ```
 
-[docs/testing.md](docs/testing.md) distingue testes executados, testes escritos e validações pendentes. O template inactivo `docs/ci/android.yml.example` prepara build, lint e testes em CI, incluindo emulador na execução manual. **Não existe um workflow GitHub Actions activo neste projecto.** Por decisão do proprietário, a configuração fica como exemplo porque a ligação GitHub usada para publicar não tem permissão de escrita de workflows. Um responsável autorizado pode activá-la seguindo [docs/ci/README.md](docs/ci/README.md). O template não necessita de credenciais de produção.
+[docs/testing.md](docs/testing.md) distingue testes executados, testes escritos e validações pendentes. `docs/ci/android.yml.example` prepara validação em demonstração, sem segredos; `docs/ci/build-apk.yml.example` prepara a geração manual de um APK pessoal com o token TMDB embutido. **Os dois templates estão inactivos: não foi instalado um workflow GitHub Actions.** A activação por um responsável autorizado e a configuração do secret do APK estão em [docs/ci/README.md](docs/ci/README.md). Não foi validada uma execução remota destes workflows.
 
 ## Estrutura e documentos
 
@@ -120,7 +134,7 @@ python3 scripts/verify_source.py       # Python 3.11+, sem SDK
 | `docs/provider-integration.md` | Documentação consultada, URLs, capacidades e limitações |
 | `docs/security.md` | Políticas reais e limites de segurança da WebView |
 | `docs/testing.md` | Testes, resultados e plano de validação em dispositivo |
-| `docs/ci/` | Template de CI inactivo e instruções para activação por um responsável autorizado |
+| `docs/ci/` | Templates inactivos de validação e APK instalável, com instruções de activação e secrets |
 | `app/src/main/assets/privacy.txt` | Política de privacidade editável |
 | `app/src/main/assets/terms.txt` | Termos de utilização editáveis |
 

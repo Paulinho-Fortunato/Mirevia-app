@@ -26,7 +26,7 @@ android {
     compileSdk = 35
     defaultConfig {
         applicationId = "ao.mirevia.app"
-        minSdk = 26
+        minSdk = 24
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
@@ -59,6 +59,8 @@ android {
         }
     }
     compileOptions {
+        // java.time is used by TMDB date filters and history on Android 7.0/7.1 (API 24/25).
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -78,6 +80,7 @@ android {
 ksp { arg("room.schemaLocation", "$projectDir/schemas") }
 
 dependencies {
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation(project(":core"))
     implementation(libs.androidx.core)
     implementation(libs.androidx.activity)
