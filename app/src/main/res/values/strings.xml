@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Mirevia</string>
+    <string name="external_player_notice">A reprodução é fornecida por um player externo através de um embed autorizado.</string>
+    <string name="player_load_error">Não foi possível carregar o player. Verifica a ligação à Internet e tenta novamente.</string>
+    <string name="player_unavailable">Não foi possível encontrar uma fonte de reprodução para este conteúdo.</string>
+    <string name="tmdb_attribution">This product uses the TMDB API but is not endorsed or certified by TMDB.</string>
+</resources>
