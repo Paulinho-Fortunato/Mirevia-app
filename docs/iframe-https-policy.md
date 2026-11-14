@@ -1,4 +1,6 @@
-# Política de recursos HTTPS do iframe — 0.2.1
+# Política de recursos HTTPS do iframe — histórico 0.2.1
+
+> Registo da decisão e dos resultados da revisão 0.2.1 (PR #6), não da revisão actual. A política de recursos/frames HTTPS continua em vigor. A regra antiga de recusar janelas foi substituída pela escolha explícita **dentro da Mirevia** na revisão 0.2.2, com consentimento 3; ver [player-windows-plan.md](player-windows-plan.md). Os testes e a versão abaixo são históricos.
 
 ## Decisão confirmada antes de programar
 

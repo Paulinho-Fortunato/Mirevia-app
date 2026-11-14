@@ -1,6 +1,5 @@
 package ao.mirevia.playback
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
@@ -16,13 +15,13 @@ import ao.mirevia.core.playback.PlaybackBlockKind
 import ao.mirevia.core.playback.VideoSource
 import java.io.ByteArrayInputStream
 
-@SuppressLint("SetJavaScriptEnabled")
 @Suppress("DEPRECATION")
 class SecureEmbedWebView(
     context: Context,
     private val source: VideoSource,
     private val policy: EmbedUrlPolicy,
     private val fullscreen: EmbedFullscreenController,
+    private val windows: PlayerWindowController,
     val sessionToken: Long,
     private val onWrapperLoaded: () -> Unit,
     private val onFailure: () -> Unit,
@@ -31,10 +30,12 @@ class SecureEmbedWebView(
 ) : WebView(context) {
     // Retained for deterministic callback tests even on API 24 (WebView's getter is API 26+).
     internal val requestClient: WebViewClient
+    internal val chromeClient: WebChromeClient
+    private val windowOwner = Any()
     internal val workerClient =
         object : ServiceWorkerClientCompat() {
             override fun shouldInterceptRequest(request: WebResourceRequest): WebResourceResponse? =
-                filterRequest(request)
+                filterWorkerRequest(request)
         }
     @Volatile private var released = false
     private var rendererGone = false
@@ -59,33 +60,7 @@ class SecureEmbedWebView(
 
     init {
         require(policy.isValidSource(source))
-        setBackgroundColor(android.graphics.Color.BLACK)
-        WebView.setWebContentsDebuggingEnabled(false)
-        settings.apply {
-            javaScriptEnabled = true
-            domStorageEnabled =
-                true // Needed by provider; cleanup is requested when the session ends.
-            allowFileAccess = false
-            allowContentAccess = false
-            allowFileAccessFromFileURLs = false
-            allowUniversalAccessFromFileURLs = false
-            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-            mediaPlaybackRequiresUserGesture = true
-            javaScriptCanOpenWindowsAutomatically = false
-            setSupportMultipleWindows(true)
-            setSupportZoom(false)
-            builtInZoomControls = false
-            displayZoomControls = false
-            cacheMode = WebSettings.LOAD_NO_CACHE
-            setSaveFormData(false)
-            defaultTextEncodingName = "UTF-8"
-            if (WebViewFeature.isFeatureSupported(WebViewFeature.SAFE_BROWSING_ENABLE))
-                WebSettingsCompat.setSafeBrowsingEnabled(this, true)
-        }
-        CookieManager.getInstance().apply {
-            setAcceptCookie(true)
-            setAcceptThirdPartyCookies(this@SecureEmbedWebView, false)
-        }
+        configurePlayerBrowser()
         configureServiceWorkers()
         setDownloadListener { _, _, _, _, _ ->
             block(PlaybackBlock.local(PlaybackBlockKind.DOWNLOAD))
@@ -174,7 +149,7 @@ class SecureEmbedWebView(
                 }
             }
         webViewClient = requestClient
-        webChromeClient =
+        chromeClient =
             object : WebChromeClient() {
                 override fun onShowCustomView(view: View, callback: CustomViewCallback) {
                     if (source.supportsFullscreen && !released) fullscreen.show(view, callback)
@@ -191,8 +166,14 @@ class SecureEmbedWebView(
                     isUserGesture: Boolean,
                     resultMsg: Message,
                 ): Boolean {
-                    block(PlaybackBlock.local(PlaybackBlockKind.NEW_WINDOW))
-                    return false
+                    if (released || securityFailureReported.get()) return false
+                    val opened = windows.open(context, windowOwner, null, resultMsg)
+                    if (opened) fullscreen.hide()
+                    return opened
+                }
+
+                override fun onCloseWindow(window: WebView) {
+                    if (!released) windows.closeView(windowOwner, window)
                 }
 
                 override fun onPermissionRequest(request: PermissionRequest) {
@@ -218,6 +199,7 @@ class SecureEmbedWebView(
                 override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean =
                     true // No player URLs, tokens or cookies in logs.
             }
+        webChromeClient = chromeClient
         if (autoLoad && !securityFailureReported.get()) loadUrl(EmbedPage.URL)
     }
 
@@ -235,6 +217,17 @@ class SecureEmbedWebView(
             return assetLoader.shouldInterceptRequest(request.url) ?: deniedResponse()
         // Consented remote HTTPS: let the iframe/browser fetch normally. Never read a response.
         return null
+    }
+
+    private fun filterWorkerRequest(request: WebResourceRequest): WebResourceResponse? {
+        if (released || securityFailureReported.get()) return deniedResponse()
+        // Shared by the iframe and transported windows: a worker has no reliable WebView owner.
+        // This is a network/resource gate, not permission to replace the iframe's main document.
+        return if (
+            IframeRequestPolicy.isAllowedRequest(request.url.toString(), isMainFrame = false)
+        )
+            null
+        else deniedResponse()
     }
 
     private fun configureServiceWorkers() {
@@ -276,6 +269,7 @@ class SecureEmbedWebView(
     fun release() {
         if (released) return
         released = true
+        windows.closeOwner(windowOwner)
         fullscreen.hide()
         // After a renderer crash Android only permits removing and destroying this instance.
         if (!rendererGone) {

@@ -115,7 +115,7 @@ fun SettingsScreen(container: AppContainer, library: LibraryViewModel, onLegal: 
                 }
                 PreferenceSwitch(
                     "Consentimento do player externo",
-                    "Permite recursos e frames HTTPS de terceiros, incluindo métricas e publicidade do fornecedor. Requer confirmação. Desactivar impede novos carregamentos.",
+                    "Permite recursos, frames e janelas HTTPS dentro da Mirevia, sem lista por domínio, incluindo métricas e publicidade. Requer confirmação renovada. Desactivar impede novos carregamentos.",
                     preferences.externalPlayerConsent,
                 ) { enabled ->
                     if (enabled) consentDialog = true

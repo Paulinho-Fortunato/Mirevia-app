@@ -61,16 +61,22 @@ class PreferencesConsentTest {
     @Test
     fun unknownAndFutureRevisionsFailClosedEvenWithLegacyBoolean() = runBlocking {
         withStore { store, repository ->
-            listOf(0, 1, IframeRequestPolicy.CONSENT_REVISION + 1).forEach { revision ->
-                store.edit {
-                    it[acceptedKey] = true
-                    it[revisionKey] = revision
-                }
-                assertFalse(
-                    "revision=$revision",
-                    repository.preferences.first().externalPlayerConsent,
+            listOf(
+                    0,
+                    1,
+                    IframeRequestPolicy.CONSENT_REVISION - 1,
+                    IframeRequestPolicy.CONSENT_REVISION + 1,
                 )
-            }
+                .forEach { revision ->
+                    store.edit {
+                        it[acceptedKey] = true
+                        it[revisionKey] = revision
+                    }
+                    assertFalse(
+                        "revision=$revision",
+                        repository.preferences.first().externalPlayerConsent,
+                    )
+                }
             store.edit {
                 it[acceptedKey] = false
                 it[revisionKey] = IframeRequestPolicy.CONSENT_REVISION

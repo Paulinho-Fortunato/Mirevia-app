@@ -4,7 +4,7 @@ Aplicação Android pessoal e não comercial para descobrir filmes e séries, co
 
 Interface em português, identidade cinematográfica Mirevia (carvão, marfim e acento cereja), ícones vectoriais e sem emojis. Não existem subscrições, pagamentos, publicidade própria, downloads ou extracção de vídeos.
 
-> **Revisão 0.2.1/código 3:** a pedido do proprietário, os recursos e frames internos do player aceitam **HTTPS (443) sem lista por domínio**, incluindo `static.cloudflareinsights.com`. O endereço inicial/partilhável continua restrito às rotas oficiais de `myembed.biz`. É pedido **consentimento renovado** para a maior exposição a terceiros. A validação JVM/sintaxe está em [testing.md](docs/testing.md); **não foi gerado/instalado um APK desta revisão aqui**, nem comprovada reprodução. O alerta do Google Play Protect continua por investigar; não deve ser ignorado. Ver [decisão e limites](docs/iframe-https-policy.md) e [guia de diagnóstico](docs/player-troubleshooting.md).
+> **Revisão 0.2.2/código 4:** janelas pedidas pelo player abrem **dentro da Mirevia, sobre o iframe, com Fechar/Voltar**, aceitando HTTPS (443) de qualquer domínio, sem aprovação por host. Criar uma janela já não provoca `NEW_WINDOW` fatal. Mantêm-se os recursos/frames HTTPS sem lista da revisão 0.2.1, a fonte inicial/partilha exacta `myembed.biz`, TLS/Safe Browsing e os bloqueios de ficheiros/downloads/instalações. Exige **consentimento renovado de revisão 3**, inclusive se a revisão 2 estava aceite. Ver [decisão e implementação](docs/player-windows-plan.md). **61 testes JVM passaram; build/lint Android, testes de dispositivo e reprodução real continuam pendentes. Nenhum APK desta revisão foi gerado aqui.** O alerta do Google Play Protect continua por investigar, sem ser desactivado ou contornado.
 
 ## Funcionalidades
 
@@ -17,7 +17,8 @@ Interface em português, identidade cinematográfica Mirevia (carvão, marfim e 
 - Lista pessoal, favoritos, vistos e episódios vistos em Room.
 - “Players recentes” e histórico local **sem percentagens, progresso ou retoma inventados**.
 - `VideoSourceProvider`, `EmbedMoviesProvider`, `SecureEmbedWebView` e `PlayerScreen`.
-- Iframe oficial responsivo em retrato/paisagem; consentimento prévio versionado para recursos/frames HTTPS de terceiros, fullscreen e erro/indisponibilidade.
+- Iframe oficial responsivo em retrato/paisagem; consentimento prévio versionado para recursos/frames/janelas HTTPS de terceiros, fullscreen e erro/indisponibilidade.
+- Janelas do player em diálogo nativo na mesma Activity, com origem sem caminho/query, Fechar/Voltar e até três janelas; fecho/falha da janela sem substituir o iframe.
 - Diagnóstico local apenas de motivo/domínio/esquema/porta, distinguindo a origem inicial do alcance HTTPS dos recursos; sem guardar URLs, queries ou tokens.
 - Partilha Android do título/página TMDB ou link MyEmbed validado, incluindo o episódio; não partilha ficheiros de vídeo.
 - Identidade pública do pacote, permissões e certificados em Definições → Segurança e assinatura do APK; não é um selo de segurança.
@@ -84,11 +85,13 @@ Episódio:    https://myembed.biz/serie/{tmdbId}/{season}/{episode}
 
 O player é incorporado numa página local HTTPS com um `<iframe>` real. Não é carregado em ExoPlayer, não são extraídos URLs, não há downloads, conversão, remoção de publicidade ou contorno de DRM/paywalls/CAPTCHA/bloqueios geográficos.
 
-**Recursos e frames internos:** depois de consentimento da revisão actual, o documento do fornecedor pode carregar HTTPS na porta padrão 443 de qualquer domínio remoto, sem confirmação por hostname, também no caminho de service workers interceptável. A CSP própria permite `frame-src https://*:443` para não impedir os redireccionamentos/frames HTTPS; a página principal permanece no wrapper local. HTTP, esquemas perigosos, credenciais no endereço, portas alternativas e o uso remoto da origem reservada ao wrapper continuam recusados nos pedidos observáveis. TLS, Safe Browsing quando suportado, cookies de terceiros desactivados e os bloqueios de ficheiros/downloads/permissões/janelas não verificadas mantêm-se.
+**Recursos e frames internos:** depois de consentimento da revisão actual, o documento do fornecedor pode carregar HTTPS na porta padrão 443 de qualquer domínio remoto, sem confirmação por hostname, também no caminho de service workers interceptável. A CSP própria permite `frame-src https://*:443` para não impedir os redireccionamentos/frames HTTPS; a página principal permanece no wrapper local. HTTP, esquemas perigosos, credenciais no endereço, portas alternativas e o uso remoto da origem reservada ao wrapper continuam recusados nos pedidos observáveis. TLS, Safe Browsing quando suportado, cookies de terceiros desactivados e os bloqueios de ficheiros/downloads/instalações/permissões mantêm-se.
 
 O proprietário forneceu o bloqueio real de `static.cloudflareinsights.com` e escolheu expressamente este alcance em vez de aprovar um host de cada vez. A [documentação Cloudflare](https://developers.cloudflare.com/web-analytics/faq/) identifica esse host como Web Analytics, não como prova de vídeo disponível. O fornecedor e terceiros podem receber IP, dados técnicos/navegação e métricas, e apresentar publicidade. A Mirevia não injecta esses scripts, não é um ad blocker e HTTPS **não certifica a confiança das origens**.
 
-O consentimento antigo, que só mencionava `myembed.biz`, deixa de autorizar o carregamento. Player e definições mostram a mesma confirmação; podes recusar/revogar sem apagar a biblioteca. **Uma URL válida ou um recurso permitido não garante reprodução.** Políticas do fornecedor, TLS/Safe Browsing, cookies e capacidades do motor ainda podem impedir o player. Ver [docs/iframe-https-policy.md](docs/iframe-https-policy.md) e [docs/provider-integration.md](docs/provider-integration.md).
+**Janelas HTTPS:** `onCreateWindow` recebe um transporte nativo, não um URL. A app cria uma WebView nova e liga-a ao motor depois de ser anexada ao diálogo; não adivinha nem pré-carrega um destino. A janela tem navegação HTTPS própria, enquanto o main frame do iframe original continua fixo no wrapper. Fechar/Voltar ou `window.close()` removem a janela e descendentes, não o iframe. Há até três janelas, sem abertura noutra app, manipulação de anúncios ou fullscreen novo para as janelas. Sair/repetir/revogar/ir para segundo plano destrói a sessão e todas as suas janelas.
+
+O consentimento antigo (incluindo a revisão 2, que dizia bloquear janelas) deixa de autorizar o carregamento: é necessária a revisão 3. As janelas podem usar cookies de primeira parte e armazenamento WebView; fechar só uma não apaga os dados globais do iframe. Player e definições mostram a mesma confirmação; podes recusar/revogar sem apagar a biblioteca. **Uma URL válida, recurso permitido ou janela aberta não garante reprodução nem confiança.** Políticas do fornecedor, TLS/Safe Browsing, cookies e capacidades do motor ainda podem impedir o player. Ver [docs/player-windows-plan.md](docs/player-windows-plan.md), [docs/iframe-https-policy.md](docs/iframe-https-policy.md) e [docs/provider-integration.md](docs/provider-integration.md).
 
 - Temporada isolada e especiais/temporada 0 não têm formato de reprodução confirmado; não são inventadas rotas.
 - PiP Android, posição, duração e conclusão automática **não são anunciados nem simulados**, por falta de contrato oficial de eventos. O iframe mantém os seus controlos originais.
@@ -124,6 +127,7 @@ No Windows usa `gradlew.bat`. O APK debug é assinado com a chave de desenvolvim
 
 ```sh
 python3 scripts/verify_source.py       # Python 3.11+, sem SDK
+python3 scripts/test_verify_source.py  # regressões textuais em memória, sem editar ficheiros
 ./gradlew :core:test :app:testDebugUnitTest
 ./gradlew :app:connectedDebugAndroidTest  # dispositivo/emulador
 ```
@@ -143,7 +147,8 @@ python3 scripts/verify_source.py       # Python 3.11+, sem SDK
 | `docs/security.md` | Políticas reais e limites de segurança da WebView |
 | `docs/player-troubleshooting.md` | Diagnóstico do player, partilha e investigação segura do Play Protect |
 | `docs/player-design-plan.md` | Histórico do plano 0.2.0 da revisão visual e dos episódios |
-| `docs/iframe-https-policy.md` | Decisão 0.2.1, políticas separadas, renovação do consentimento e riscos de terceiros |
+| `docs/iframe-https-policy.md` | Histórico da decisão 0.2.1 para recursos/frames HTTPS |
+| `docs/player-windows-plan.md` | Decisão 0.2.2: janelas dentro da Mirevia, transporte, ciclo de vida, consentimento 3 e validações |
 | `docs/testing.md` | Testes, resultados e plano de validação em dispositivo |
 | `docs/ci/` | Templates inactivos de validação e APK instalável, com instruções de activação e secrets |
 | `app/src/main/assets/privacy.txt` | Política de privacidade editável |

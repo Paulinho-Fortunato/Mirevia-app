@@ -66,6 +66,7 @@ fun PlayerScreen(
     fun feedback(message: String) {
         scope.launch { snackbar.showSnackbar(message) }
     }
+    val windows = remember { PlayerWindowController { message -> feedback(message) } }
     DisposableEffect(lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
@@ -77,6 +78,7 @@ fun PlayerScreen(
                     sessionEpoch++
                     activeHost?.release()
                     activeHost = null
+                    windows.closeAll()
                     fullscreen.hide()
                 }
                 else -> Unit
@@ -87,6 +89,7 @@ fun PlayerScreen(
             lifecycle.removeObserver(observer)
             activeHost?.release()
             activeHost = null
+            windows.closeAll()
         }
     }
     val embedVisible =
@@ -109,6 +112,7 @@ fun PlayerScreen(
     }
     BackHandler {
         when {
+            windows.activeWindow != null -> windows.closeActive()
             fullscreen.customView != null -> fullscreen.hide()
             expanded -> expanded = false
             else -> onExit()
@@ -272,11 +276,15 @@ fun PlayerScreen(
                                         val attempt = state.attempt
                                         AndroidView(
                                             factory = { webContext ->
+                                                // End the previous session before configuring the
+                                                // process-wide worker gate or clearing shared data.
+                                                activeHost?.release()
                                                 SecureEmbedHost(
                                                         webContext,
                                                         source,
                                                         container.embedPolicy,
                                                         fullscreen,
+                                                        windows,
                                                         viewModel::sessionOpened,
                                                         viewModel::sessionClosed,
                                                         { viewModel.wrapperLoaded(attempt) },
@@ -377,7 +385,6 @@ fun PlayerScreen(
                 ) {
                     Icon(Icons.Outlined.FullscreenExit, "Sair do ecrã expandido")
                 }
-            SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).safeDrawingPadding())
             fullscreen.customView?.let { customView ->
                 AndroidView(
                     factory = {
@@ -387,6 +394,9 @@ fun PlayerScreen(
                     modifier = Modifier.fillMaxSize().background(Color.Black),
                 )
             }
+            if (embedVisible) PlayerWindowsOverlay(windows, snackbar)
+            if (windows.activeWindow == null)
+                SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).safeDrawingPadding())
         }
         shareTarget?.let { target ->
             MediaShareSheet(target, container.embedPolicy) { shareTarget = null }

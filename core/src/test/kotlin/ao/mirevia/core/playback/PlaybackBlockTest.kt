@@ -22,6 +22,7 @@ class PlaybackBlockTest {
         }
         assertTrue(report.contains("Iframe inicial autorizado: myembed.biz"))
         assertTrue(report.contains(IframeRequestPolicy.RESOURCE_DESCRIPTION))
+        assertTrue(report.contains(PlayerWindowPolicy.DESCRIPTION))
         assertFalse(report.contains("Domínios autorizados:"))
         assertFalse(policy.isAllowedNavigation("https://cdn.example"))
     }

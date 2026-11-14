@@ -15,6 +15,7 @@ import ao.mirevia.core.playback.EmbedUrlPolicy
 import ao.mirevia.core.playback.IframeRequestPolicy
 import ao.mirevia.core.playback.PlaybackBlock
 import ao.mirevia.core.playback.PlaybackBlockKind
+import ao.mirevia.core.playback.PlayerWindowPolicy
 import ao.mirevia.ui.components.StatusPanel
 import ao.mirevia.ui.theme.Accent
 import ao.mirevia.ui.theme.Muted
@@ -36,7 +37,7 @@ fun PlaybackBlockPanel(
             PlaybackBlockKind.NAVIGATION ->
                 "Foi bloqueada uma navegação. A página principal tem de permanecer no wrapper local; os frames internos aceitam HTTPS na porta 443, sem credenciais no endereço."
             PlaybackBlockKind.NEW_WINDOW ->
-                "O player pediu uma janela externa que não pode ser validada em segurança. A sessão foi interrompida, sem alterar os anúncios ou o conteúdo do fornecedor."
+                "Não foi possível abrir a janela pedida pelo player. Na política actual, as janelas HTTPS abrem dentro da Mirevia sem lista por domínio; criar uma janela não deve interromper o iframe principal."
             PlaybackBlockKind.DOWNLOAD ->
                 "O player tentou iniciar um download. A Mirevia só permite reprodução por iframe, não ficheiros de vídeo."
             PlaybackBlockKind.UNSAFE_PAGE ->
@@ -92,6 +93,11 @@ fun PlaybackBlockPanel(
                 )
                 Text(
                     IframeRequestPolicy.RESOURCE_DESCRIPTION,
+                    color = Muted,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                Text(
+                    PlayerWindowPolicy.DESCRIPTION,
                     color = Muted,
                     style = MaterialTheme.typography.bodySmall,
                 )

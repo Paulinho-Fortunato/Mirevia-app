@@ -1,5 +1,5 @@
 Mirevia — Termos de utilização
-Versão inicial: 14 de Novembro de 2026
+Revisão 0.2.2: 14 de Novembro de 2026 — janelas HTTPS dentro da Mirevia
 
 Projecto pessoal e não comercial. Documento editável em app/src/main/assets/terms.txt, sujeito a revisão antes de qualquer distribuição pública.
 
@@ -22,7 +22,7 @@ A aplicação não extrai URLs de vídeo, não copia ficheiros de conteúdos, n�
 Utiliza apenas conteúdos a que tenhas acesso lícito e respeita os direitos de autor, as regras dos serviços externos e a legislação aplicável. A aplicação não deve ser utilizada para distribuição não autorizada, revenda ou exploração comercial de conteúdos.
 
 6. Dados locais e terceiros
-A tua lista, favoritos e histórico ficam neste dispositivo, sem sincronização na cloud. A remoção da aplicação pode eliminar esses dados. As ligações à TMDB, ao fornecedor externo e aos terceiros que o seu documento carregar via HTTPS (incluindo métricas/publicidade), ao backend configurado e a plataformas de trailers estão sujeitas às práticas desses serviços. O player exige consentimento actual para recursos/frames HTTPS sem lista por domínio, revogável nas definições; HTTPS não certifica essas origens como fiáveis. Consulta também a política de privacidade da Mirevia.
+A tua lista, favoritos e histórico ficam neste dispositivo, sem sincronização na cloud. A remoção da aplicação pode eliminar esses dados. As ligações à TMDB, ao fornecedor externo e aos terceiros que o seu documento carregar via HTTPS (incluindo métricas/publicidade), ao backend configurado e a plataformas de trailers estão sujeitas às práticas desses serviços. O player exige consentimento actual de revisão 3 para recursos, frames e janelas HTTPS (443) sem lista por domínio, revogável nas definições. Aprovações antigas, incluindo a revisão 2, exigem reconfirmação. Janelas de terceiros abrem sobre o iframe na mesma Activity, com Fechar/Voltar e até três janelas, não num navegador externo. Podem ter publicidade/métricas e usar cookies de primeira parte/armazenamento WebView; cookies de terceiros continuam desactivados. Criar/fechar uma janela não substitui o iframe nem limpa os seus dados globais; terminar a sessão solicita a limpeza. TLS/Safe Browsing e restrições de ficheiros/downloads/instalações permanecem. HTTPS não certifica as origens como fiáveis. Consulta também a política de privacidade da Mirevia.
 
 7. Disponibilidade e alterações
 A aplicação é um projecto pessoal em desenvolvimento, disponibilizado sem garantia de disponibilidade contínua. As integrações podem ser alteradas ou desactivadas quando a documentação, a autorização ou os requisitos de segurança mudarem. Erros são apresentados explicitamente; não são substituídos por fontes inventadas.

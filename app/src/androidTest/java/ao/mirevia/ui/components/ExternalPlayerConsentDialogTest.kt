@@ -23,10 +23,15 @@ class ExternalPlayerConsentDialogTest {
                 ExternalPlayerConsentDialog(onAccept = { accepted++ }, onDismiss = { dismissed++ })
             }
         }
-        compose.onNodeWithText("Permitir recursos HTTPS externos?").assertIsDisplayed()
+        compose.onNodeWithText("Permitir player e janelas HTTPS?").assertIsDisplayed()
         compose.onNodeWithText("O iframe começa em myembed.biz.", substring = true).assertExists()
         compose.onNodeWithText("Cloudflare Insights", substring = true).assertExists()
         compose.onNodeWithText(IframeRequestPolicy.RESOURCE_DESCRIPTION).assertExists()
+        compose
+            .onNodeWithText(ao.mirevia.core.playback.PlayerWindowPolicy.DESCRIPTION)
+            .assertExists()
+        compose.onNodeWithText("Fechar ou Voltar", substring = true).assertExists()
+        compose.onNodeWithText("cookies de primeira parte", substring = true).assertExists()
         compose.onNodeWithText("HTTPS não garante", substring = true).assertExists()
         compose.runOnIdle { assertEquals(listOf(0, 0), listOf(accepted, dismissed)) }
         compose.onNodeWithText("Cancelar").performClick()

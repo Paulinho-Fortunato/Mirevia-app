@@ -32,6 +32,7 @@ private constructor(
                 "Porta explícita: ${port?.toString() ?: "nenhuma"}",
                 "Iframe inicial autorizado: ${policy.allowedHosts.sorted().joinToString(", ")}",
                 IframeRequestPolicy.RESOURCE_DESCRIPTION,
+                PlayerWindowPolicy.DESCRIPTION,
                 "O domínio observado não é adicionado à lista de fontes iniciais.",
                 "Sem caminhos, parâmetros, cookies, tokens ou histórico de títulos.",
             )

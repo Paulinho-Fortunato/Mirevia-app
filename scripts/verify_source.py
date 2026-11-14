@@ -67,23 +67,44 @@ search_screen = (ROOT / 'app/src/main/java/ao/mirevia/ui/search/SearchScreen.kt'
 require(re.search(r'MediaSearchRow\(\s*media\s*=\s*result\.media,\s*onClick\s*=', search_screen), 'Bind the search result callback explicitly to MediaSearchRow.onClick; subtitle is the last parameter')
 
 webview = (ROOT / 'app/src/main/java/ao/mirevia/playback/SecureEmbedWebView.kt').read_text()
-for required in ['handler.cancel()', 'allowFileAccess = false', 'allowContentAccess = false', 'MIXED_CONTENT_NEVER_ALLOW', 'setAcceptThirdPartyCookies(this@SecureEmbedWebView, false)', 'request.deny()', 'removeAllCookies', 'WebView.setWebContentsDebuggingEnabled(false)']:
-    require(required in webview, f'Missing WebView restriction: {required}')
-require('OkHttpClient' not in webview and 'openConnection' not in webview, 'WebView must not fetch/interrogate streams itself')
-for required in ['WebSettingsCompat.setSafeBrowsingEnabled(this, true)', 'callback.backToSafety(true)', 'PlaybackBlock.request(PlaybackBlockKind.RESOURCE, url)']:
-    require(required in webview, f'Keep Safe Browsing and origin-only block diagnostics: {required}')
-require('onSecurityBlocked: (PlaybackBlock) -> Unit' in webview, 'Do not pass raw resource URLs to UI or diagnostics')
-# The owner explicitly selected remote HTTPS resources/frames without a per-host list.
-# Do not reuse the source/share allowlist here, or let the main frame leave the local wrapper.
+popup = (ROOT / 'app/src/main/java/ao/mirevia/playback/PlayerWindowWebView.kt').read_text()
+browser_settings = (ROOT / 'app/src/main/java/ao/mirevia/playback/SecureBrowserSettings.kt').read_text()
+window_controller = (ROOT / 'app/src/main/java/ao/mirevia/playback/PlayerWindowController.kt').read_text()
+window_policy = (ROOT / 'core/src/main/kotlin/ao/mirevia/core/playback/PlayerWindowPolicy.kt').read_text()
+for required in ['allowFileAccess = false', 'allowContentAccess = false', 'MIXED_CONTENT_NEVER_ALLOW', 'setAcceptThirdPartyCookies(this@configurePlayerBrowser, false)', 'WebView.setWebContentsDebuggingEnabled(false)', 'WebSettingsCompat.setSafeBrowsingEnabled(this, true)', 'javaScriptCanOpenWindowsAutomatically = false', 'setSupportMultipleWindows(true)']:
+    require(required in browser_settings, f'Missing shared WebView restriction: {required}')
+for browser in [webview, popup]:
+    for required in ['configurePlayerBrowser()', 'handler.cancel()', 'callback.backToSafety(true)', 'request.deny()', 'filePathCallback.onReceiveValue(null)']:
+        require(required in browser, f'Keep the same base protection in iframe and windows: {required}')
+    require('OkHttpClient' not in browser and 'openConnection' not in browser, 'WebViews must not fetch/interrogate streams themselves')
+require('removeAllCookies' in webview, 'Keep final session cleanup in the iframe owner')
+for forbidden in ['removeAllCookies', 'deleteAllData', 'ServiceWorkerController', 'Intent.ACTION_VIEW', 'Intent.parseUri']:
+    require(forbidden not in popup, f'Closing a window must not clear global state, reconfigure workers or open apps: {forbidden}')
+require(not re.search(r'\bloadUrl\s*\(', popup + window_controller), 'Transport a fresh window without guessing or preloading a URL')
+require('PlaybackBlock.request(PlaybackBlockKind.RESOURCE, url)' in webview and 'onSecurityBlocked: (PlaybackBlock) -> Unit' in webview, 'Keep typed origin-only main-player diagnostics, never raw URLs')
+# The owner selected HTTPS resources/frames (0.2.1) and internal HTTPS windows (0.2.2), no host list.
 request_policy = (ROOT / 'core/src/main/kotlin/ao/mirevia/core/playback/IframeRequestPolicy.kt').read_text()
-require('if (isMainFrame) return url == LOCAL_DOCUMENT_URL' in request_policy, 'Keep the main document fixed to the local wrapper')
+require('if (isMainFrame) return url == LOCAL_DOCUMENT_URL' in request_policy, 'Keep the iframe main document fixed to the local wrapper')
 for required in ['"https"', 'uri.rawUserInfo != null', 'uri.port != -1 && uri.port != 443', "host.trimEnd('.') == LOCAL_HOST"]:
     require(required in request_policy, f'Keep the HTTPS resource boundary: {required}')
-require('allowedHosts' not in request_policy and 'static.cloudflareinsights.com' not in request_policy, 'Do not reintroduce a per-host HTTPS resource list')
-require(webview.count('IframeRequestPolicy.isAllowedRequest(url, request.isForMainFrame)') == 2, 'Apply the resource/frame policy to both navigation and interception')
-require('policy.isAllowedNavigation' not in webview, 'The strict source allowlist must not filter iframe resource domains')
-require(webview.count('filterRequest(request)') == 2 and 'controller.setServiceWorkerClient(workerClient)' in webview, 'WebView and service workers must delegate to the same request gate')
+require('allowedHosts' not in request_policy + window_policy and 'static.cloudflareinsights.com' not in request_policy + window_policy, 'Do not reintroduce per-host HTTPS resource/window lists')
+require('BLANK_DOCUMENT = "about:blank"' in window_policy and 'IframeRequestPolicy.isAllowedRequest(url, isMainFrame = false)' in window_policy, 'Window policy allows a local blank bootstrap and remote HTTPS, not the iframe main-document rule')
+require(webview.count('IframeRequestPolicy.isAllowedRequest(url, request.isForMainFrame)') == 2, 'Keep iframe navigation and interception on its scoped policy')
+require('policy.isAllowedNavigation' not in webview + popup, 'The strict source allowlist must not filter remote resource/window domains')
+require(popup.count('PlayerWindowPolicy.isAllowedRequest(url)') == 3, 'Check popup navigation, resources and observed document URLs with its own HTTPS policy')
+require('onPageCommitVisible' in popup and 'updateDocumentOrigin(url)' in popup and 'onOrigin(PlaybackBlock.request(PlaybackBlockKind.NAVIGATION, url))' in popup, 'Refresh the origin-only native label after window redirects')
+require('filterWorkerRequest(request)' in webview and 'controller.setServiceWorkerClient(workerClient)' in webview, 'Install the shared worker network gate')
+require('IframeRequestPolicy.isAllowedRequest(request.url.toString(), isMainFrame = false)' in webview, 'Worker networking must not apply the iframe-only main document rule to transported windows')
 require('require(policy.isValidSource(source))' in webview, 'Keep strict initial source validation before loading')
+require('block(PlaybackBlock.local(PlaybackBlockKind.NEW_WINDOW))' not in webview and 'windows.open(context, windowOwner, null, resultMsg)' in webview, 'A popup request must not terminate the iframe')
+require('windows.closeOwner(windowOwner)' in webview, 'Destroy this session windows when the iframe is released')
+for required in ['as? WebView.WebViewTransport', 'isAttachedToWindow', 'response.transport.webView = entry.value.browser', 'response.message.sendToTarget()', 'addOnAttachStateChangeListener', 'TRANSPORT_TIMEOUT_MS', 'stack.removeOwner(owner)', 'stack.clear()']:
+    require(required in window_controller, f'Keep native transport, attachment, bounded lifetime and cancellation: {required}')
+transport_completion = window_controller.split('private fun completeTransport(', 1)[1].split('internal fun closeView(', 1)[0]
+require('if (!entry.value.browser.isAttachedToWindow) return' in transport_completion and 'response.message.sendToTarget()' in transport_completion, 'Complete the accepted transport only after native attachment, not just during cancellation')
+window_stack = (ROOT / 'core/src/main/kotlin/ao/mirevia/core/playback/PlayerWindowStack.kt').read_text()
+require('MAX_WINDOWS = 3' in window_stack and window_stack.count('it.owner === owner') == 2, 'Bound native windows and isolate parent/cleanup owners by identity without restricting HTTPS hostnames')
+require('CONSENT_REVISION = 3' in request_policy, 'Renew consent because the previous revision promised to block windows')
 preferences = (ROOT / 'app/src/main/java/ao/mirevia/data/local/PreferencesRepository.kt').read_text()
 for required in ['IframeRequestPolicy.hasCurrentConsent(', 'intPreferencesKey("external_player_consent_revision")', 'it[PLAYER_CONSENT_REVISION] = IframeRequestPolicy.CONSENT_REVISION', 'it.remove(PLAYER_CONSENT_REVISION)']:
     require(required in preferences, f'Renew and revoke the broader player consent: {required}')
@@ -93,8 +114,13 @@ player_screen = (ROOT / 'app/src/main/java/ao/mirevia/ui/player/PlayerScreen.kt'
 require('if (enabled) consentDialog = true' in settings_screen and 'else update { container.preferences.setPlayerConsent(false) }' in settings_screen, 'Settings must ask before enabling consent, but allow revocation without approval')
 require('ExternalPlayerConsentDialog(' in settings_screen and 'ExternalPlayerConsentDialog(' in player_screen, 'Share the same explicit third-party disclosure in settings and player')
 require('preferences?.externalPlayerConsent == true' in player_screen, 'Do not create the iframe before current consent')
+require('PlayerWindowsOverlay(windows, snackbar)' in player_screen and 'windows.activeWindow != null -> windows.closeActive()' in player_screen and 'windows.closeAll()' in player_screen, 'Keep visible window chrome, Back and lifecycle cleanup')
+window_surface = (ROOT / 'app/src/main/java/ao/mirevia/ui/player/PlayerWindowSurface.kt').read_text()
+for required in ['Janela do player · terceiros', 'Origem: https:', 'Text("Fechar")', 'onRelease = {}', 'Dialog(', 'dismissOnBackPress = true', 'dismissOnClickOutside = false']:
+    require(required in window_surface, f'Windows need distinct origin-only native chrome and controller-owned lifetime: {required}')
+
 consent_dialog = (ROOT / 'app/src/main/java/ao/mirevia/ui/components/ExternalPlayerConsentDialog.kt').read_text()
-for required in ['Cloudflare Insights', 'HTTPS não garante', 'enabled = !storageError', 'onClick = onAccept', 'onClick = onDismiss']:
+for required in ['Cloudflare Insights', 'HTTPS não garante', 'PlayerWindowPolicy.DESCRIPTION', 'Fechar ou Voltar', 'cookies de primeira parte', 'enabled = !storageError', 'onClick = onAccept', 'onClick = onDismiss']:
     require(required in consent_dialog, f'Keep explicit third-party disclosure and fail-closed consent: {required}')
 
 container = (ROOT / 'app/src/main/java/ao/mirevia/app/AppContainer.kt').read_text()
@@ -152,7 +178,8 @@ require(sdk_setup_count >= 3, 'Missing Android SDK setup in CI templates')
 print(f'Android SDK setup: {sdk_setup_count} steps explicitly avoid the removed legacy tools package.')
 print(f'Source checks: {len(sources)} production Kotlin files; XML, TOML, manifest, iframe and security invariants OK.')
 print('Theme compatibility: windowLightNavigationBar only in values-v27, with a base fallback for API 24-26.')
-print('Iframe: exact initial-source/share hosts; consent-versioned HTTPS resources/frames without a per-host list; fixed main document and shared worker gate.')
+print('Iframe/windows: exact initial-source/share hosts and fixed iframe wrapper; HTTPS resources/frames/popups without host lists; consent revision 3 and a separate worker network gate.')
+print('Windows: native transport after attachment, distinct origin-only chrome, Close/Back, bounded owner-scoped lifetime and shared browser protections.')
 print('Diagnostics/sharing: typed origin-only blocks, Safe Browsing, text-only chooser and API 24 identity fallback present.')
 print('Reported Kotlin regressions: player-specific immersive helper and named search onClick present.')
 print('Android 7.0 configuration: minSdk 24, core library desugaring and API 24/35 test matrix present.')

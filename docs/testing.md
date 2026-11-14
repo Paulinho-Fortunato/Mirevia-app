@@ -1,6 +1,34 @@
 # Testes e validação
 
-## Resultados da revisão 0.2.1 (14-11-2026)
+## Resultados da revisão 0.2.2 (14-11-2026)
+
+| Verificação | Resultado desta revisão |
+| --- | --- |
+| Kotlin/JVM de `:core`, testes e `EmbedPage` | Compilado com Kotlin 2.1.20/Java 17, contra fontes reais; sem pedidos TMDB/player |
+| JUnit de domínio/fornecedor/URLs/partilha/diagnóstico/wrapper/políticas/pilha | **61 testes passaram** (47 existentes + 6 da política de janela + 8 do grafo), incluindo consentimento de revisão 2 inválido |
+| Parser PSI Kotlin | **97 ficheiros**, incluindo testes/Gradle: sintaxe apenas, sem tipos/dependências Android; repetir após alterações |
+| `python3 scripts/verify_source.py` | Passou: **64 fontes de produção**, XML/TOML/manifesto, settings partilhadas, origem inicial/partilha exactas, main frame fixo, HTTPS sem lista, transporte/anexação, Fechar/Voltar, workers e consentimento 3 |
+| `python3 scripts/test_verify_source.py` | **30 regressões em memória rejeitadas**, com árvore real a passar primeiro; não altera ficheiros. São checks textuais limitados, não uma auditoria completa |
+| Formatação / whitespace | Kotlin alterado com ktfmt 0.59.0, estilo Kotlin; `git diff --check` limpo |
+| Instrumentação nova escrita | **21 casos, não compilados nem executados**: 14 controlador/transportes/clientes, 5 superfície Compose, 1 fixture de engine/opener real e 1 separação de workers/main document |
+| Instrumentação existente alterada | Consentimento DataStore/dialogue actualizado para revisão 3 e recusa da 2; mantém dados isolados e nenhum contacto com fornecedor. Casos anteriores também não executados |
+| SDK/Gradle Android/lint/APK | SDK/emulador indisponíveis; nenhuma build/lint/instrumentação Android ou APK desta revisão. A tentativa Gradle histórica falhou na transferência antes da compilação; não foi repetida nesta revisão |
+| Dispositivo/API 24 e 35, transporte engine, Back/fullscreen/TalkBack e reprodução real | **Pendentes**. A fixture de engine está escrita para dispositivo; não foi executada aqui e não testa o fornecedor |
+| Publicação/credenciais | Publicação do código em PR solicitada pelo proprietário após a implementação; sem APK/dispatch. Dependências/permissões/workflows/assinatura/token inalterados |
+
+A fonte é **0.2.2/código 4**, mínimo API 24, compile/target 35 e desugaring preservados. A autorização persistida tem de ser exactamente revisão 3; renovar não apaga Room. A criação de uma janela deixa de ser uma falha fatal, mas HTTPS/janela aberta não comprova vídeo, confiança, direitos ou resolução do alerta Play Protect.
+
+### O que cobrem os novos casos Android (pendentes)
+
+- `PlayerWindowControllerTest`: WebViews/`WebViewTransport` nativos, mas **Handler de resposta falso e callbacks invocados directamente**, sem `loadUrl` nem contacto com o fornecedor. Anexação antes da resposta, Fechar/Back, `onCloseWindow`, opener preservado entre filhos, saída de fullscreen, limite de três, um pending por opener, transporte inválido/cancelamento ao libertar, esquema recusado/erro local, settings/Safe Browsing e origem final sanitizada em redireccionamento. Safe Browsing usa fixture API 27+; o resto deve correr também em API 24 com WebView actualizado/worker support.
+- `PlayerWindowEngineTest`: **HTML/JavaScript local próprio de teste**, não injecção no player externo. Gesto real num botão da fixture dispara `window.open('about:blank')`, o motor fornece o transporte/WindowProxy, verifica `window.opener`, Fechar e nova abertura sem recarregar o opener. O opener recusa rede observável, o HTML não referencia serviços externos e os filhos ficam em blank. Não testa rotas reais, direitos, publicidade ou disponibilidade do fornecedor.
+- `PlayerWindowSurfaceTest`: UI só com textos locais; rótulo de terceiros, origem sem caminho/query, Fechar explícito, destino desconhecido sem falsa confiança, erro local e fontes a 2×.
+- `SecureEmbedWebViewTest`: o gate global de workers aplica HTTPS a recursos mesmo quando o pedido diz main frame, mas isso não autoriza um documento remoto no iframe principal; pedido worker recusado não inventa a atribuição nem gera `NEW_WINDOW` fatal.
+- DataStore/dialogue: a revisão anterior 2 não autoriza janelas; aceitar continua explícito, gravação/revogação atómicas e falhas não aceites. Divulgação inclui dados técnicos/IP, publicidade/métricas, primeira parte/WebStorage e Fechar/Voltar.
+
+## Resultados históricos da revisão 0.2.1 (14-11-2026)
+
+Os números abaixo pertencem à revisão 0.2.1/PR #6, não são a validação Android da revisão actual.
 
 | Verificação | Resultado |
 | --- | --- |
@@ -102,6 +130,7 @@ Python 3.11 ou superior:
 
 ```sh
 python3 scripts/verify_source.py
+python3 scripts/test_verify_source.py
 ```
 
 Se tiveres uma distribuição oficial do compilador Kotlin, JDK 17 e JUnit/Hamcrest locais, podes reproduzir a compilação JVM independente:
@@ -125,6 +154,8 @@ java -cp ".tools/core-tests.jar:$CP:$KOTLIN_HOME/lib/kotlin-stdlib.jar" \
   ao.mirevia.core.model.MediaSharingTest \
   ao.mirevia.core.playback.PlaybackBlockTest \
   ao.mirevia.core.playback.IframeRequestPolicyTest \
+  ao.mirevia.core.playback.PlayerWindowPolicyTest \
+  ao.mirevia.core.playback.PlayerWindowStackTest \
   ao.mirevia.playback.EmbedPageTest
 ```
 
@@ -182,10 +213,10 @@ Separador de classpath no Windows: `;` em vez de `:`.
 3. API configurada: conteúdos reais, ausência de resultados, 401/403/404/429, ligação lenta e offline, cancelamento ao escrever/voltar.
 4. Favoritos/lista/vistos persistentes após reinício; remoção, limpeza e pesquisa recente.
 5. Séries: só a temporada seleccionada carrega episódios; pesquisar/trocar/revisitar temporadas, cancelar pedidos lentos, tratar vazio/erro/repetição, still ausente e especiais; seleccionar episódio real e verificar identificadores.
-6. Actualizar uma instalação antiga com `external_player_consent=true` e sem revisão: não contactar o fornecedor até nova confirmação. Testar aceitar/cancelar/revogar no player e nas definições, falhas de preferências e biblioteca preservada. Nunca inserir uma URL de vídeo.
-7. Na sessão consentida, domínios HTTPS não listados (incluindo Cloudflare, frames/redireccionamentos e workers) não podem ser recusados só por hostname. HTTP/esquema perigoso/porta alternativa, credenciais, escape do main frame, popup, download, TLS inválido/Safe Browsing continuam restringidos. No bloqueio, mostrar só origem e as duas políticas; copiar/partilhar sem paths, queries, fragmentos, credenciais ou histórico. Sem fallback/extracção.
+6. Actualizar uma instalação antiga com `external_player_consent=true` sem revisão **ou com revisão 2**: não contactar o fornecedor até confirmação 3. Testar aceitar/cancelar/revogar no player e nas definições, falhas de preferências e biblioteca preservada. Nunca inserir uma URL de vídeo.
+7. Na sessão consentida, domínios HTTPS não listados (incluindo Cloudflare, frames/redireccionamentos, janelas e workers) não podem ser recusados só por hostname. Play a pedir janela não gera interrupção fatal: aparece diálogo dentro da Mirevia, sem parar/substituir o iframe, com Fechar/Voltar e origem final sem path/query. Testar janela blank, HTTPS, nested/opener, `window.close()`, limite de três, transport pending/timeout, erro local e nova abertura; fechar não limpa cookies globais. HTTP/esquema perigoso/porta alternativa, credenciais, escape do main frame **do iframe**, ficheiros/downloads/instalações, TLS inválido/Safe Browsing continuam restringidos. Sem fallback/extracção/alteração de anúncios.
 8. CSP/X-Frame-Options: não remover headers; testar o estado de falha e a acção manual “não carregou”.
-9. Fullscreen normal do fornecedor, expansão da superfície, botão Voltar, ida ao segundo plano e destruição/libertação do WebView.
+9. Fullscreen normal do fornecedor, expansão da superfície e saída de fullscreen quando abre uma janela; Fechar/Voltar fica visível e o diálogo concentra foco/TalkBack. Sem janelas, Voltar sai do fullscreen/expansão/Activity como antes. Sair/repetir/revogar/segundo plano encerra a sessão e todos os filhos; um crash partilhado do renderer pode afectar o iframe e deve mostrar erro honesto.
 10. PiP, progresso, duração e fim do vídeo: **nenhum controlo nativo ou valor fictício** enquanto não houver API oficial validada.
 11. Navegador externo: só com preferência/confirmacão; abrir o playground oficial com iframe, não o stream.
 12. TalkBack, descrições de ícones, foco, contraste, teclado, touch targets, listas longas e uso de memória/bateria.
@@ -193,7 +224,7 @@ Separador de classpath no Windows: `;` em vez de `:`.
 
 ## Histórico 0.2.0 e limites actuais
 
-Na revisão 0.2.0 só havia relato de erro genérico e de Google Play Protect; a allowlist não tinha mudado. Depois, o proprietário forneceu `RESOURCE`/`https`/`static.cloudflareinsights.com` sem porta e escolheu recursos/frames HTTPS sem lista por hostname. Essa origem e a decisão já são conhecidas. A revisão 0.2.1 muda a política dos pedidos/CSP próprios e renova o consentimento; a fonte inicial/partilha mantém `myembed.biz` exacto.
+Na revisão 0.2.0 só havia relato de erro genérico e de Google Play Protect; a allowlist não tinha mudado. Depois, o proprietário forneceu `RESOURCE`/`https`/`static.cloudflareinsights.com` sem porta e escolheu recursos/frames HTTPS sem lista por hostname. Essa origem e a decisão já são conhecidas. A revisão 0.2.1 muda a política dos pedidos/CSP próprios e renova o consentimento; a fonte inicial/partilha mantém `myembed.biz` exacto. Depois, as capturas de Play mostraram `NEW_WINDOW`, evento sem URL. A decisão 0.2.2 abre janelas HTTPS dentro da Mirevia sem aprovação por host, com Fechar/Voltar, transporte nativo e consentimento 3. Recursos continuam amplos, fonte inicial/partilha e wrapper principal continuam estritos.
 
 Ainda não há texto/captura integral do Play Protect, APK sinalizado ou nova build identificada. Não foi executada uma sessão real de reprodução, análise de APK ou recurso ao Google. Não é declarado que o alerta é um falso positivo, que a reprodução já funciona ou que a UI foi aprovada visualmente no dispositivo. A aceitação de um recurso analytics não equivale a resolver vídeo, direitos ou segurança.
 

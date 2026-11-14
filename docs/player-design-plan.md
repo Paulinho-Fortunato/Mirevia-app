@@ -1,6 +1,6 @@
 # Revisão do player, partilha e design — histórico 0.2.0
 
-> Registo histórico da revisão 0.2.0 (PR #5). A regra de lista exacta abaixo foi substituída **só para recursos e frames internos** pela decisão explícita da revisão 0.2.1 em [iframe-https-policy.md](iframe-https-policy.md); fontes iniciais/partilha continuam exactas. Os resultados abaixo são daquela revisão, não uma nova build.
+> Registo histórico da revisão 0.2.0 (PR #5). A lista exacta abaixo foi substituída para recursos/frames internos pela decisão explícita 0.2.1 em [iframe-https-policy.md](iframe-https-policy.md). A recusa de janelas foi depois substituída pelas janelas HTTPS dentro da Mirevia da revisão 0.2.2 em [player-windows-plan.md](player-windows-plan.md). Fontes iniciais/partilha continuam exactas. Os resultados abaixo são históricos, não uma nova build.
 
 ## Plano antes da implementação
 
