@@ -1,6 +1,6 @@
 # Arquitectura e plano da Mirevia
 
-Plano original apresentado antes do código em 14 de Novembro de 2026. O proprietário confirmou o host **exacto `myembed.biz`** para a fonte inicial/partilhável, conforme a documentação de embedmovies.org. Na revisão 0.2.1 escolheu explicitamente permitir **recursos e frames internos HTTPS (443) sem lista por domínio**, incluindo métricas/publicidade, com consentimento renovado. Ver o [plano da decisão](iframe-https-policy.md); não se alargou o validador das fontes iniciais.
+Plano original apresentado antes do código em 14 de Novembro de 2026. O proprietário confirmou o host **exacto `myembed.biz`** para a fonte inicial/partilhável, conforme a documentação de embedmovies.org. Na revisão 0.2.1 escolheu explicitamente permitir **recursos e frames internos HTTPS (443) sem lista por domínio**, incluindo métricas/publicidade, com consentimento renovado. Na revisão 0.2.2 escolheu **janelas HTTPS dentro da Mirevia**, com Fechar/Voltar sem encerrar o iframe só por criar uma janela; exige consentimento 3. Ver [recursos](iframe-https-policy.md) e [janelas](player-windows-plan.md); não se alargou o validador das fontes iniciais.
 
 ## 1. Arquitectura
 
@@ -15,7 +15,7 @@ Compose → ViewModels → contratos/casos de utilização → implementações 
                                                                    └─ EmbedMoviesProvider
 ```
 
-`ResolveVideoSource` rejeita demonstrações e revalida a saída do fornecedor. `EmbedMoviesUrlBuilder` é o único local que conhece os formatos de iframe. O leitor separa `EmbedUrlPolicy` (fontes iniciais/partilha) de `IframeRequestPolicy` (main frame local fixo, recursos/frames HTTPS e revisão de consentimento).
+`ResolveVideoSource` rejeita demonstrações e revalida a saída do fornecedor. `EmbedMoviesUrlBuilder` é o único local que conhece os formatos de iframe. O leitor separa `EmbedUrlPolicy` (fontes iniciais/partilha), `IframeRequestPolicy` (main frame local fixo, recursos/frames HTTPS e revisão de consentimento) e `PlayerWindowPolicy` (contexto blank local e documentos/recursos HTTPS das janelas). `PlayerWindowStack` é um grafo puro de descendência/proprietário; o controlador nativo pertence à UI, sem WebViews nas ViewModels.
 
 ## 2. Estrutura de pastas
 
@@ -40,7 +40,7 @@ app/src/main/java/ao/mirevia/
   ui/preview/                previews Compose fictícios, sem rede
   security/                  metadados públicos da assinatura/permissões próprias
   ui/player/                 estados e ecrã de reprodução
-  playback/                  iframe, WebView, fullscreen, Activity isolada
+  playback/                  iframe, WebViews de janelas, transporte/controlador, fullscreen, Activity isolada
 app/src/main/assets/         termos e privacidade editáveis
 app/src/main/res/            strings, marca vectorial, configurações de rede
 app/src/test/                testes JVM de dados e apresentação
@@ -48,7 +48,7 @@ app/src/androidTest/         testes instrumentados Room, Compose e WebView
 core/src/main/kotlin/ao/mirevia/core/
   model/                     modelos de domínio
   repository/                contratos para dados locais/remotos
-  playback/                  fornecedor, URL builder, políticas de fonte/recursos e diagnóstico sem URL bruto
+  playback/                  fornecedor, URL builder, políticas de fonte/recursos/janelas, pilha pura e diagnóstico sem URL bruto
 core/src/test/               testes independentes de Android
 gradle/                      versões e wrapper com checksums
 scripts/                     verificações de fontes e sintaxe
@@ -67,7 +67,7 @@ Barra inferior: **Início → Explorar → Pesquisa → Minha lista → Definiç
 - A Activity isolada utiliza o mesmo `PlayerScreen` Compose, sem alterar a orientação do catálogo. Não são passados URLs por Intent: apenas identificadores que serão novamente resolvidos.
 - Detalhes/episódio/player → folha de partilha → chooser Android com texto público validado.
 - Definições → `legal/privacy`, `legal/terms` e folha local de segurança/assinatura.
-- Voltar no leitor sai primeiro do fullscreen do fornecedor, depois do modo expandido, depois da Activity.
+- Voltar fecha primeiro a janela HTTPS sobreposta (e descendentes); sem janela, sai do fullscreen do fornecedor, depois do modo expandido e depois da Activity. O diálogo nativo mantém foco/TalkBack nos seus controlos. Não envia a Activity para segundo plano.
 
 ## 4. Modelo de dados
 
@@ -110,7 +110,9 @@ Fullscreen do iframe é documentado. A flag PiP nativo é falsa: não existe con
 
 ## 8. WebView
 
-Wrapper local HTTPS com WebViewAssetLoader e um iframe real, CSP `default-src 'none'; frame-src https://*:443`, sem scripts próprios nem bridges. `EmbedUrlPolicy` valida apenas a fonte inicial/partilhável: host/rota/IDs/flags. `IframeRequestPolicy` permite domínios HTTPS (443) para frames e recursos observáveis sem lista por hostname; `shouldOverrideUrlLoading`, `shouldInterceptRequest` e o cliente de service workers delegam a essa política. A página principal só pode ser o URL exacto do wrapper servido localmente; o host reservado não é requisitado remotamente como recurso. TLS sem excepções, sem ficheiros, uploads, permissões sensíveis, janelas não validadas, conteúdo misto ou cookies de terceiros. O filtro não descarrega nem lê respostas.
+Wrapper local HTTPS com WebViewAssetLoader e um iframe real, CSP `default-src 'none'; frame-src https://*:443`, sem scripts próprios nem bridges. `EmbedUrlPolicy` valida apenas a fonte inicial/partilhável: host/rota/IDs/flags. `IframeRequestPolicy` permite domínios HTTPS (443) para frames e recursos observáveis sem lista por hostname; `shouldOverrideUrlLoading`, `shouldInterceptRequest` e o cliente de service workers delegam a essa política. A página principal só pode ser o URL exacto do wrapper servido localmente; o host reservado não é requisitado remotamente como recurso. TLS sem excepções, sem ficheiros, uploads/downloads, instalações, permissões sensíveis, conteúdo misto ou cookies de terceiros. O filtro não descarrega nem lê respostas.
+
+Janelas usam `PlayerWindowController`/`PlayerWindowWebView`, `WebViewTransport` real e um diálogo Compose na mesma Activity. A WebView nasce sem `loadUrl`; só responde ao motor depois de anexada. A política de documentos da janela aceita HTTPS sem lista e o contexto local `about:blank`, sem autorizar main frame remoto no iframe original. O processo de workers é partilhado: o seu filtro é de recursos HTTPS, não o main frame do wrapper; filhos não substituem esse cliente global. Fechar uma janela não limpa cookies/storage do iframe. No fim da sessão/repetição/revogação/segundo plano, o host liberta primeiro as janelas; a nova sessão só é criada depois de libertar a anterior. A limpeza global é solicitada uma vez pelo proprietário do iframe.
 
 **A WebView não é um firewall de rede.** Ver [security.md](security.md) para limites em redireccionamentos de sub-recursos, WebSockets, armazenamento interno e observabilidade do iframe. Esta implementação restritiva não é uma certificação de isolamento absoluto de rede.
 
@@ -175,3 +177,10 @@ Historicamente, a revisão 0.2.0/código 2 manteve as dependências, minSdk 24, 
 Após o diagnóstico `RESOURCE`/`https`/`static.cloudflareinsights.com` sem porta explícita, o proprietário escolheu eliminar a lista por host **dos recursos e frames internos**. A implementação separa essa política da fonte inicial/partilha, alinha o `frame-src` da CSP própria e renova a aprovação nas duas entradas da UI. Versão de fontes 0.2.1/código 3; dependências, mínimo API 24/desugaring, compile/target 35, permissões, workflows, assinatura e token preservados.
 
 HTTPS não certifica uma origem; este alcance aumenta a exposição a terceiros e não promete reprodução nem resolve o Play Protect. Ver [testing.md](testing.md) para testes realmente executados e validação Android ainda pendente.
+
+
+## Revisão 0.2.2 — janelas dentro da Mirevia
+
+As capturas seguintes mostraram o player, mas Play disparava `NEW_WINDOW` fatal sem domínio/esquema: `onCreateWindow` não fornece o destino. O proprietário escolheu `in_app_https_window`. `PlayerWindowPolicy`, `PlayerWindowStack`, settings partilhadas, controlador/transporte, WebView filha e chrome nativo completam a integração sem reescrever o fornecedor. Até três janelas, descendentes fechados antes do opener, erro de janela local, Fechar/Voltar e encerramento por sessão. Um crash partilhado do motor ainda pode afectar o iframe; não se promete isolamento de processo.
+
+Fontes em 0.2.2/código 4 e consentimento 3, invalidando explicitamente a revisão 2. Não há alteração de dependências, permissões, Android 7/API 24, compile/target 35, desugaring, workflows, assinatura ou token. Testes JVM/sintaxe/fontes executados e Android pendente estão em [testing.md](testing.md); não foi gerado APK nem testado Play real nesta revisão.

@@ -12,7 +12,7 @@ object IframeRequestPolicy {
     const val LOCAL_HOST = "appassets.androidplatform.net"
     const val LOCAL_DOCUMENT_URL = "https://$LOCAL_HOST/player/index.html"
     // Increment when third-party exposure changes; a legacy approval must not grant wider access.
-    const val CONSENT_REVISION = 2
+    const val CONSENT_REVISION = 3
     // Host wildcard only for internal frames, with the same TLS/default-port boundary.
     const val FRAME_CSP_SOURCES = "https://*:443"
     const val RESOURCE_DESCRIPTION =

@@ -15,6 +15,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import ao.mirevia.R
 import ao.mirevia.core.playback.IframeRequestPolicy
+import ao.mirevia.core.playback.PlayerWindowPolicy
 
 /**
  * Shared by player and settings: enabling the wider policy always requires explicit confirmation.
@@ -28,7 +29,7 @@ fun ExternalPlayerConsentDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Permitir recursos HTTPS externos?") },
+        title = { Text("Permitir player e janelas HTTPS?") },
         text = {
             Column(
                 Modifier.verticalScroll(rememberScrollState()),
@@ -39,11 +40,18 @@ fun ExternalPlayerConsentDialog(
                     "O iframe começa em myembed.biz. O documento do fornecedor pode carregar recursos e frames HTTPS de outros domínios, incluindo CDNs, publicidade e serviços de métricas como Cloudflare Insights. O fornecedor e esses terceiros podem receber o teu IP e dados técnicos/navegação."
                 )
                 Text(IframeRequestPolicy.RESOURCE_DESCRIPTION)
+                Text(PlayerWindowPolicy.DESCRIPTION)
+                Text(
+                    "Ao tocares em Play ou noutros controlos, o player pode pedir janelas com publicidade ou páginas de terceiros. Essas janelas abrem sobre o iframe dentro da Mirevia, sem aprovação por domínio; podes usar Fechar ou Voltar. A origem é mostrada quando o motor a disponibiliza, sem certificar a sua confiança."
+                )
+                Text(
+                    "As janelas podem usar cookies de primeira parte e armazenamento WebView durante a sessão. Cookies de terceiros continuam desactivados; a limpeza é pedida ao sair do player, não ao fechar cada janela."
+                )
                 Text(
                     "Não será pedida aprovação para cada domínio. HTTPS não garante que uma origem seja de confiança. A Mirevia não injecta scripts, não altera os anúncios ou controlos e não mede nem simula o progresso do vídeo."
                 )
                 Text(
-                    "TLS e Safe Browsing mantêm-se activos quando suportados. Downloads, ficheiros, permissões sensíveis e janelas externas não verificadas continuam bloqueados. Podes revogar esta autorização nas definições."
+                    "TLS e Safe Browsing mantêm-se activos quando suportados. Downloads, ficheiros, instalações, permissões sensíveis e esquemas externos continuam bloqueados. Não são activadas janelas automáticas por temporizador. Podes revogar esta autorização nas definições."
                 )
                 if (storageError)
                     Text(

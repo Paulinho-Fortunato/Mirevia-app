@@ -69,8 +69,20 @@ class SecureEmbedWebViewTest {
 
     @Test
     fun workerCannotBypassTheHttpsRequirement() = withView { view ->
-        val request = request("http://unlisted.example/worker-resource")
-        assertEquals(403, view.workerClient.shouldInterceptRequest(request)!!.statusCode)
+        val denied = request("http://unlisted.example/worker-resource")
+        assertEquals(403, view.workerClient.shouldInterceptRequest(denied)!!.statusCode)
+        // A shared worker cannot be reliably attributed to a popup or the iframe. Deny the request,
+        // without inventing an attribution or making NEW_WINDOW a fatal player error.
+        assertNull(
+            view.requestClient.shouldInterceptRequest(view, request("https://myembed.biz/filme/11"))
+        )
+    }
+
+    @Test
+    fun workerNetworkGateDoesNotGrantPermissionToReplaceTheWrapper() = withView { view ->
+        val request = request("https://unlisted.example/worker-document", main = true)
+        assertNull(view.workerClient.shouldInterceptRequest(request))
+        assertEquals(403, view.requestClient.shouldInterceptRequest(view, request)!!.statusCode)
     }
 
     @Test
@@ -104,6 +116,7 @@ class SecureEmbedWebViewTest {
                     source,
                     EmbedUrlPolicy(setOf("myembed.biz")),
                     EmbedFullscreenController(),
+                    PlayerWindowController {},
                     0,
                     {},
                     {},

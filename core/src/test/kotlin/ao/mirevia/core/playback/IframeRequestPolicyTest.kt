@@ -124,9 +124,20 @@ class IframeRequestPolicyTest {
 
     @Test
     fun `legacy unknown and future consent revisions cannot authorize third parties`() {
-        listOf(null, -1, 0, 1, IframeRequestPolicy.CONSENT_REVISION + 1).forEach { revision ->
-            assertFalse("revision=$revision", IframeRequestPolicy.hasCurrentConsent(true, revision))
-        }
+        listOf(
+                null,
+                -1,
+                0,
+                1,
+                IframeRequestPolicy.CONSENT_REVISION - 1,
+                IframeRequestPolicy.CONSENT_REVISION + 1,
+            )
+            .forEach { revision ->
+                assertFalse(
+                    "revision=$revision",
+                    IframeRequestPolicy.hasCurrentConsent(true, revision),
+                )
+            }
         assertTrue(
             IframeRequestPolicy.hasCurrentConsent(true, IframeRequestPolicy.CONSENT_REVISION)
         )
