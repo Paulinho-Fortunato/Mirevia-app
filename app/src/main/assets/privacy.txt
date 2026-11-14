@@ -1,0 +1,34 @@
+Mirevia — Política de privacidade
+Versão inicial: 14 de Novembro de 2026
+
+Projecto pessoal e não comercial. Este documento pode ser editado em app/src/main/assets/privacy.txt. Deve ser revisto pelo responsável antes de qualquer distribuição pública.
+
+1. Dados guardados localmente
+A Mirevia guarda favoritos, lista pessoal, marcações manuais de visto, episódios vistos, pesquisas recentes e registos de abertura/saída do player. Estes dados ficam na base de dados privada da aplicação. As preferências são guardadas através de DataStore.
+
+Não existe conta de utilizador, sincronização na cloud, publicidade própria, subscrição, cobrança, analytics ou recolha de identificadores publicitários. O backup automático dos dados da aplicação está desactivado.
+
+2. Histórico e progresso
+O histórico regista a abertura do player, não confirma que o vídeo começou ou terminou. A Mirevia não mede a posição do vídeo externo, não lê o seu DOM e não simula progresso. Os registos estão limitados aos 300 mais recentes; as pesquisas, às 20 mais recentes. Podes desactivar o histórico e apagá-lo nas definições.
+
+3. TMDB e imagens
+Quando a TMDB está configurada, a aplicação envia consultas de catálogo, pesquisa e identificadores de conteúdos à TMDB, ou ao backend intermediário que o responsável configurar. Estes serviços recebem dados técnicos de ligação, como o endereço IP. As imagens são obtidas da TMDB e podem ficar em cache no dispositivo. Não são enviadas a tua biblioteca nem as tuas marcações de visto para uma conta TMDB.
+
+As recomendações por título exigem consultar à TMDB o identificador de um conteúdo da biblioteca. Não são enviadas a lista completa nem informações de identidade. Sem configuração de API, os exemplos de demonstração são locais e explicitamente fictícios.
+
+4. Player externo
+A reprodução é fornecida por um player externo através de um embed autorizado. O iframe do EmbedMovies é alojado no host myembed.biz, documentado por embedmovies.org e aprovado para este projecto. Antes do primeiro carregamento é solicitado consentimento. O fornecedor pode receber o endereço IP, dados do dispositivo e informações de navegação relacionadas com o seu player.
+
+A Mirevia não controla a disponibilidade, os eventuais anúncios, as práticas de dados ou o conteúdo de terceiros. A allowlist de segurança pode impedir recursos de hosts não confirmados. A aplicação não remove anúncios nem contorna bloqueios. Cookies de terceiros estão desactivados por omissão. A Mirevia solicita a limpeza de cookies, cache e armazenamento WebView ao sair do leitor. A API pública não garante a remoção imediata de todos os dados internos do motor; a limpeza completa pode ser feita nas definições do Android. Não é prometida retoma entre sessões.
+
+5. Ligações externas
+Trailers oficiais podem abrir YouTube ou Vimeo após confirmação. Quando autorizado nas definições, pode ser aberta a página oficial de demonstração do EmbedMovies no navegador, onde o próprio serviço utiliza iframe. O navegador tem políticas de dados e armazenamento independentes da Mirevia. Não são abertos links directos de streams.
+
+6. Segurança e retenção
+A aplicação exige HTTPS, usa a confiança TLS do sistema, não grava tokens ou cookies em registos e não pede permissões de ficheiros, localização, câmara ou microfone. Metadados e imagens podem permanecer temporariamente em cache, limitada pela aplicação. A opção de apagar a biblioteca não apaga as caches de metadados/imagens; podes limpar todos os dados da aplicação nas definições do Android.
+
+7. Controlo dos teus dados
+Podes remover favoritos, entradas da lista e registos do histórico, limpar pesquisas e apagar os dados locais na aplicação. Para remover também preferências e caches, utiliza as definições do Android ou desinstala a Mirevia. Não existem dados de conta remota para apagar.
+
+8. Responsável e alterações
+O responsável é o proprietário deste projecto pessoal. Não foi fornecido um contacto público. Antes de distribuir a aplicação, o responsável deve identificar-se, acrescentar um canal de contacto, rever as práticas reais do backend e dos fornecedores e adequar este documento à legislação aplicável. Não é uma declaração de conformidade jurídica nem substitui aconselhamento legal.

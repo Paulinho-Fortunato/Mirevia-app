@@ -1,0 +1,64 @@
+#!/usr/bin/env python3
+"""Dependency-free source/configuration invariants. Not a replacement for lint or device tests."""
+from pathlib import Path
+import hashlib
+import re
+import tomllib
+import xml.etree.ElementTree as ET
+import zipfile
+
+ROOT = Path(__file__).resolve().parents[1]
+ANDROID = '{http://schemas.android.com/apk/res/android}'
+
+def require(value, message):
+    if not value:
+        raise AssertionError(message)
+
+for path in (ROOT / 'app/src/main').rglob('*.xml'):
+    ET.parse(path)
+with (ROOT / 'gradle/libs.versions.toml').open('rb') as f:
+    tomllib.load(f)
+
+manifest = ET.parse(ROOT / 'app/src/main/AndroidManifest.xml').getroot()
+permissions = {node.get(ANDROID + 'name') for node in manifest.findall('uses-permission')}
+require(permissions == {'android.permission.INTERNET', 'android.permission.ACCESS_NETWORK_STATE'}, 'Unexpected Android permission')
+application = manifest.find('application')
+require(application.get(ANDROID + 'usesCleartextTraffic') == 'false', 'Cleartext must be disabled')
+require(application.get(ANDROID + 'allowBackup') == 'false', 'Backup must be disabled')
+player = next(node for node in application.findall('activity') if node.get(ANDROID + 'name') == '.playback.PlayerActivity')
+require(player.get(ANDROID + 'exported') == 'false', 'Player must not be externally exported')
+require(player.get(ANDROID + 'supportsPictureInPicture') != 'true', 'Do not claim undocumented native PiP')
+network = ET.parse(ROOT / 'app/src/main/res/xml/network_security_config.xml').getroot()
+require(network.find('base-config').get('cleartextTrafficPermitted') == 'false', 'Network config must reject cleartext')
+
+sources = list((ROOT / 'app/src/main/java').rglob('*.kt')) + list((ROOT / 'core/src/main/kotlin').rglob('*.kt'))
+for path in sources:
+    content = path.read_text()
+    for forbidden in ['addJavascriptInterface(', 'evaluateJavascript(', 'android.app.DownloadManager', 'allowFileAccess = true', 'allowUniversalAccessFromFileURLs = true', 'handler.proceed(', 'MIXED_CONTENT_ALWAYS_ALLOW']:
+        require(forbidden not in content, f'Forbidden API in {path.relative_to(ROOT)}: {forbidden}')
+    require(not re.search(r'[\U0001f000-\U0001faff\u2600-\u27bf]', content), f'Emoji in interface source: {path}')
+    require(not re.search(r'\b(?:TODO|FIXME)\s*\(', content), f'Unimplemented code in {path}')
+
+webview = (ROOT / 'app/src/main/java/ao/mirevia/playback/SecureEmbedWebView.kt').read_text()
+for required in ['handler.cancel()', 'allowFileAccess = false', 'allowContentAccess = false', 'MIXED_CONTENT_NEVER_ALLOW', 'setAcceptThirdPartyCookies(this@SecureEmbedWebView, false)', 'request.deny()', 'removeAllCookies', 'WebView.setWebContentsDebuggingEnabled(false)']:
+    require(required in webview, f'Missing WebView restriction: {required}')
+require('OkHttpClient' not in webview and 'openConnection' not in webview, 'WebView must not fetch/interrogate streams itself')
+wrapper = (ROOT / 'app/src/main/java/ao/mirevia/playback/EmbedPage.kt').read_text()
+require('<iframe src=' in wrapper and 'Content-Security-Policy' in wrapper, 'A real iframe with CSP is required')
+require('<script' not in wrapper and '<video' not in wrapper, 'No script injection or custom video element')
+provider = (ROOT / 'core/src/main/kotlin/ao/mirevia/core/playback/EmbedMoviesUrlBuilder.kt').read_text()
+require('DOCUMENTED_HOST = "myembed.biz"' in provider, 'Reconfirm provider documentation before changing the host')
+strings = {node.get('name'): node.text for node in ET.parse(ROOT / 'app/src/main/res/values/strings.xml').getroot()}
+require(strings['external_player_notice'] == 'A reprodução é fornecida por um player externo através de um embed autorizado.', 'Required provider notice differs')
+require(strings['player_load_error'] == 'Não foi possível carregar o player. Verifica a ligação à Internet e tenta novamente.', 'Required error differs')
+require(strings['player_unavailable'] == 'Não foi possível encontrar uma fonte de reprodução para este conteúdo.', 'Required unavailable message differs')
+require(strings['tmdb_attribution'] == 'This product uses the TMDB API but is not endorsed or certified by TMDB.', 'Missing TMDB attribution')
+
+wrapper_jar = ROOT / 'gradle/wrapper/gradle-wrapper.jar'
+expected = (ROOT / 'gradle/wrapper/gradle-wrapper.jar.sha256').read_text().split()[0]
+require(hashlib.sha256(wrapper_jar.read_bytes()).hexdigest() == expected, 'Wrapper checksum differs')
+with zipfile.ZipFile(wrapper_jar) as jar:
+    require('org/gradle/wrapper/GradleWrapperMain.class' in jar.namelist(), 'Incomplete Gradle wrapper')
+require('distributionSha256Sum=f397b287023acdba1e9f6fc5ea72d22dd63669d59ed4a289a29b1a76eee151c6' in (ROOT / 'gradle/wrapper/gradle-wrapper.properties').read_text(), 'Gradle distribution checksum missing')
+print(f'Source checks: {len(sources)} production Kotlin files; XML, TOML, manifest, iframe and security invariants OK.')
+print('These checks do not prove compilation, runtime safety or live playback compatibility.')

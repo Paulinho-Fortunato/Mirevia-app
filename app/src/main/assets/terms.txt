@@ -1,0 +1,31 @@
+Mirevia — Termos de utilização
+Versão inicial: 14 de Novembro de 2026
+
+Projecto pessoal e não comercial. Documento editável em app/src/main/assets/terms.txt, sujeito a revisão antes de qualquer distribuição pública.
+
+1. Finalidade
+A Mirevia permite descobrir filmes e séries, consultar metadados da TMDB e organizar uma biblioteca local. Não vende conteúdos, não cobra subscrições e não oferece downloads. Os exemplos de demonstração são fictícios e não têm fonte de reprodução.
+
+2. Metadados e atribuição
+This product uses the TMDB API but is not endorsed or certified by TMDB.
+A TMDB fornece metadados e imagens. A utilização da API não concede direitos de transmissão, não fornece ficheiros de vídeo e não significa que a Mirevia seja afiliada, certificada, patrocinada ou aprovada pela TMDB. Aplicam-se os termos de utilização da TMDB.
+
+3. Reprodução por fornecedor externo
+A reprodução utiliza exclusivamente os formatos oficiais de iframe documentados pelo EmbedMovies. O responsável do projecto declarou ter autorização do proprietário do serviço para esta integração pessoal. Essa declaração não é uma garantia de direitos de terceiros sobre cada obra e deve ser verificada pelo responsável conforme a sua utilização e jurisdição.
+
+A disponibilidade de cada título e as funcionalidades do player são determinadas pelo fornecedor. Uma URL de iframe válida não confirma que o conteúdo esteja disponível. Quando uma restrição técnica ou a política de segurança impedir o carregamento, a Mirevia não oferece fontes alternativas nem mecanismos de contorno.
+
+4. Limites técnicos
+A aplicação não extrai URLs de vídeo, não copia ficheiros de conteúdos, não converte streams, não remove anúncios, não altera o player externo e não contorna DRM, paywalls, CAPTCHA, restrições geográficas ou outras medidas técnicas. Os controlos de qualidade, legendas e progresso pertencem ao iframe. PiP nativo e retoma exacta não são prometidos sem integração oficial verificável.
+
+5. Utilização responsável
+Utiliza apenas conteúdos a que tenhas acesso lícito e respeita os direitos de autor, as regras dos serviços externos e a legislação aplicável. A aplicação não deve ser utilizada para distribuição não autorizada, revenda ou exploração comercial de conteúdos.
+
+6. Dados locais e terceiros
+A tua lista, favoritos e histórico ficam neste dispositivo, sem sincronização na cloud. A remoção da aplicação pode eliminar esses dados. As ligações à TMDB, ao fornecedor externo, ao backend configurado e a plataformas de trailers estão sujeitas às práticas desses serviços. Consulta também a política de privacidade da Mirevia.
+
+7. Disponibilidade e alterações
+A aplicação é um projecto pessoal em desenvolvimento, disponibilizado sem garantia de disponibilidade contínua. As integrações podem ser alteradas ou desactivadas quando a documentação, a autorização ou os requisitos de segurança mudarem. Erros são apresentados explicitamente; não são substituídos por fontes inventadas.
+
+8. Responsável
+O proprietário do projecto deve acrescentar a sua identificação e contacto, confirmar as autorizações relevantes e rever estes termos antes de distribuir a aplicação. Este texto não constitui aconselhamento jurídico e não limita direitos que sejam obrigatórios por lei.

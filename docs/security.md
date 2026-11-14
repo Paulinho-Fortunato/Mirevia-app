@@ -1,0 +1,71 @@
+# Segurança, privacidade e limites de garantia
+
+Esta é uma implementação restritiva de WebView, **não uma certificação de segurança nem um firewall completo**. A integração real deve ser validada em dispositivos antes de distribuição.
+
+## Superfícies e políticas
+
+| Superfície | Política |
+| --- | --- |
+| API TMDB | HTTPS; origem do cliente fixa; sem redireccionamentos automáticos ou logging de bearer |
+| Proxy opcional | HTTPS, sem credenciais no URL; não recebe token local da TMDB |
+| Imagens | Caminhos e base da configuração oficial; posters apenas em `image.tmdb.org` |
+| Wrapper | `https://appassets.androidplatform.net/player/index.html`, resolvido localmente, sem HTTP real para esse host |
+| Iframe | Rotas oficiais em `myembed.biz`; validação antes do botão, da Activity e do WebView |
+| Navegação | Main frame permanece no wrapper; frames só em origens HTTPS exactas aprovadas |
+| Pedidos observáveis | Gate de origem, sem ler corpos, extrair media ou criar um proxy de streams |
+| Popups/downloads/uploads | Não permitidos; bloqueio explícito, sem abertura de URLs não validados |
+| TLS | Confiança de sistema e cancelamento de erros; nunca `SslErrorHandler.proceed()` |
+| Permissões | Sem ficheiros, câmara, microfone, localização ou permissões nativas concedidas ao player |
+| Cookies/storage | Terceiros desactivados; pedido de limpeza de cookies, cache e WebStorage ao sair |
+| Contas e dados | Sem login, analytics, publicidade própria, sincronização ou identificador publicitário |
+
+Network Security Configuration desactiva cleartext e aceita apenas CAs do sistema. **Esta configuração não é uma allowlist global de domínios HTTPS**; os controlos de origem ficam nas classes de rede/WebView.
+
+## Configuração WebView
+
+`SecureEmbedWebView` configura:
+
+- JavaScript apenas para o player, sem `addJavascriptInterface`, `evaluateJavascript`, scripts próprios, leitura do DOM ou alterações do player.
+- `allowFileAccess=false`, `allowContentAccess=false`, acesso de ficheiros entre origens desactivado.
+- `MIXED_CONTENT_NEVER_ALLOW`, gesto de utilizador para media e Safe Browsing quando disponível.
+- Sem depuração remota, formulários guardados ou cache persistente pedida pelo leitor.
+- Permissões e geolocalização recusadas; file chooser devolve cancelamento.
+- Janelas novas não validadas recusadas, com mensagem e interrupção da sessão.
+- Cookies de terceiros desactivados. Não são activados silenciosamente para contornar uma incompatibilidade.
+- Cliente de service workers com a mesma verificação nos pedidos interceptáveis; ao sair, a rede dos workers é bloqueada quando essa capacidade está disponível e o cliente deixa de reter a Activity.
+- Fullscreen do vídeo apenas com a capacidade da fonte e o callback do iframe. Sem PiP Android anunciado.
+
+O wrapper tem CSP `default-src 'none'`, `frame-src` explícito, sem objectos, forms ou base externa. Não remove nem reescreve CSP ou X-Frame-Options do fornecedor. O referrer utiliza a política normal strict-origin-when-cross-origin; não é falsificado para evitar protecções contra hotlink.
+
+Se uma origem for bloqueada, a sessão é interrompida: não se continua a reproduzir com anúncios selectivamente removidos. O filtro não conhece nem classifica publicidade; limita-se à lista exacta de origens autorizadas.
+
+## Limitações reais da API WebView
+
+1. **`shouldInterceptRequest` não é um firewall.** A plataforma pode chamar o callback apenas para a URL inicial de um redireccionamento de sub-recurso. Nem todos os transportes internos do motor, em particular WebSockets, são expostos por estes callbacks. A aplicação não promete que estes hooks garantam isolamento absoluto de todo o tráfego de uma página de terceiros.
+2. A CSP do wrapper restringe a incorporação, **não substitui a CSP do documento cross-origin**. Não se injecta uma CSP no iframe nem se altera a resposta do fornecedor.
+3. `onPageFinished` não comprova vídeo iniciado, player funcional ou conformidade de todos os recursos. Bloqueios CSP/X-Frame-Options e erros internos podem não gerar um callback distinto. O leitor disponibiliza repetição, informação de erro e a acção manual de falha, sem inspeccionar o DOM.
+4. A API pública de limpeza não garante a eliminação imediata de todos os detalhes internos do motor, caches de workers ou dados guardados pelo navegador externo. O utilizador pode limpar os dados completos nas definições do Android. Não é prometida retoma persistente.
+5. A versão instalada do Android System WebView influencia permissões, protecções e fullscreen. O responsável deve manter o motor actualizado e testar o conjunto de dispositivos suportado.
+
+**Se o requisito de produto for uma garantia estrita de que nenhum pacote pode contactar outro host, os callbacks WebView não são suficientes.** É necessária uma solução de isolamento de rede validada fora desta implementação e autorização/revisão do fornecedor. Não implementar para isso um extractor, proxy de vídeos ou remoção de restrições do player.
+
+## Segredos
+
+O repositório não inclui tokens. `local.properties`, `.env`, keystores e artefactos compilados são ignorados. A configuração debug via BuildConfig evita exposição no Git, **não evita engenharia reversa do APK**. Release esvazia o token e aceita proxy ou demonstração. Um backend real deve proteger credenciais, controlar abuso, minimizar logs e cumprir os termos da TMDB.
+
+Não adicionar logging HTTP de headers/corpos nem registos de URLs de reprodução, cookies ou dados pessoais. Não desactivar TLS no ambiente local para fazer uma build passar.
+
+## Dados locais e consentimento
+
+Consentimento antes de criar o iframe; pode ser revogado nas definições. Falha ao ler preferências desactiva histórico e consentimento por segurança e produz aviso. Erros de escrita são apresentados, não convertidos em sucesso fictício.
+
+Room não guarda cookies ou credenciais. Histórico limitado a 300 registos, pesquisas a 20. Favoritos/lista/vistos permanecem até remoção. A limpeza de biblioteca não apaga caches de metadados/imagens ou preferências; isso é indicado na privacidade. Backup da aplicação e transferência de dados são excluídos na configuração Android.
+
+## Antes de distribuir
+
+- Compilar, executar lint e os testes instrumentados, inclusive API 26 e 35.
+- Rever as políticas de rede em dispositivo, redireccionamentos e origens efectivas com o fornecedor, sem extracção de streams.
+- Confirmar por escrito as dependências de origens e os requisitos de cookies/storage.
+- Rever o backend, atribuição TMDB e os documentos legais; acrescentar identificação/contacto do responsável.
+- Testar recusa/revogação de consentimento, ausência de WebView, offline, TLS inválido, segundo plano, libertação de memória e acessibilidade.
+- Não distribuir um APK debug que contenha a tua credencial pessoal.
