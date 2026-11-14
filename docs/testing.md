@@ -6,12 +6,13 @@
 | --- | --- |
 | Compilação Kotlin JVM de `:core` e `EmbedPage` | Executada com Kotlin 2.1.20 e Java 17 |
 | JUnit: domínio, URLs, fornecedor, filtros, wrapper | **22 testes passaram** |
-| Parser PSI Kotlin, incluindo testes e scripts Gradle | **64 ficheiros sem erros de sintaxe** na verificação final completa |
-| `python3 scripts/verify_source.py` | Passou: XML, TOML, manifesto, permissões, invariantes do iframe/WebView e checksums |
+| Parser PSI Kotlin, incluindo testes e scripts Gradle | **64 ficheiros sem erros de sintaxe** na verificação anterior; o novo teste de compatibilidade Android 7.0 ainda não foi verificado com PSI |
+| `python3 scripts/verify_source.py` | Passou: XML, TOML, manifesto, permissões, invariantes do iframe/WebView, checksums e restrições do template de APK |
+| Templates `ci/android.yml.example` e `ci/build-apk.yml.example` | YAML analisado; 11 scripts passaram `bash -n`; matriz API 24/35 conferida; gates de minSdk e secret testados com dados simulados, sem APK ou credencial real |
 | `./gradlew :core:test :app:assembleDebug` | **Bloqueado antes da compilação**: SSLHandshakeException/EOF ao obter a distribuição Gradle no ambiente com rede restrita |
 | Android SDK / emulador | Não disponíveis neste ambiente |
 | Testes de Retrofit, mapeamentos e ViewModels via Gradle | Escritos, ainda não executados aqui |
-| Room, Compose e WebView instrumentados | Escritos, ainda não executados aqui |
+| Room, Compose, WebView e compatibilidade Android 7.0 instrumentados | Escritos, ainda não executados aqui; execução em API 24 e 35 preparada no template de CI |
 | Reprodução real, PiP do fornecedor e fullscreen em dispositivo | Não validados aqui |
 | APK | Não gerado nem assinado nesta sessão |
 
@@ -38,7 +39,25 @@ Relatórios:
 - `app/build/reports/lint-results-debug.html`
 - `app/build/reports/androidTests/connected/debug/index.html`
 
-O template inactivo [ci/android.yml.example](ci/android.yml.example) está preparado para executar unitários, lint e build em push/PR com dados de demonstração, sem segredos. Depois de instalado, `workflow_dispatch` acrescenta um job de emulador API 35. **Não existe um workflow GitHub Actions activo nem uma execução remota validada neste projecto.** O proprietário optou por manter CI como template porque a ligação GitHub não tem permissão para publicar workflows. A activação exige um responsável com essa permissão, conforme [ci/README.md](ci/README.md).
+O template inactivo [ci/android.yml.example](ci/android.yml.example) está preparado para executar unitários, lint e build em push/PR com dados de demonstração, sem segredos. Depois de instalado, `workflow_dispatch` acrescenta uma matriz de emuladores **API 24 (Android 7.0) e API 35**. **Não existe um workflow GitHub Actions activo nem uma execução remota validada neste projecto.** O proprietário optou por manter CI como template porque a ligação GitHub não tem permissão para publicar workflows. A activação exige um responsável com essa permissão, conforme [ci/README.md](ci/README.md).
+
+O segundo template, [`ci/build-apk.yml.example`](ci/build-apk.yml.example), destina-se à geração **manual** de um APK pessoal com o token TMDB embutido. Primeiro executa testes/lint em demonstração; só a compilação final recebe o secret. Confirma a assinatura para API 24 com `apksigner` e verifica com `aapt` que o manifesto do APK declara `minSdk 24`, antes de o disponibilizar. Não foi executado remotamente aqui: a existência do template e a validação da sua estrutura não equivalem a uma build Android bem-sucedida. Ver [ci/README.md](ci/README.md) para configuração, download e riscos de exposição do token.
+
+## Compatibilidade Android 7.0 — pendente de execução
+
+A versão mínima configurada é API 24. Como `TmdbCatalogRepository` e `LibraryScreen` usam `java.time`, o módulo Android activa core library desugaring com `desugar_jdk_libs` 2.1.5; reduzir apenas `minSdk` não seria suficiente. `compileSdk`/`targetSdk` permanecem em 35.
+
+`AndroidCompatibilityTest` verifica o `minSdkVersion` do APK instalado e as operações de `LocalDate`, `Instant`, `ZoneId` e `DateTimeFormatter` usadas pelo catálogo/histórico. Deve ser executado em **API 24**, não apenas num JVM de desenvolvimento ou num Android 8+ com essas classes nativas. O teste não contacta a TMDB nem o fornecedor e não contém credenciais.
+
+Os recursos de navegação exclusivos de API 26 ficam em `values-v26`; o tema de API 24 mantém a base escura. Os callbacks WebView de API 26/27 estão anotados para essas versões e as funcionalidades AndroidX WebKit continuam protegidas por verificações de capacidade, sem relaxar a política de segurança.
+
+Em Android Studio, cria um emulador Android 7.0/API 24 (ou liga um dispositivo real equivalente), selecciona-o e executa:
+
+```sh
+./gradlew :app:connectedDebugAndroidTest
+```
+
+Depois repete os testes em API 35. Em caso de múltiplos dispositivos ligados, selecciona o pretendido no IDE ou define `ANDROID_SERIAL` para o serial correcto antes do comando. Ainda não foram executados aqui o lint Android, os testes instrumentados ou uma instalação API 24; não se declara compatibilidade de execução comprovada.
 
 ## Verificações independentes do SDK
 
@@ -104,10 +123,11 @@ Separador de classpath no Windows: `;` em vez de `:`.
 - Room: flags independentes, IDs isolados, histórico sem progresso falso, vistos por episódio e pesquisas limitadas/deduplicadas.
 - Compose: cinco separadores, detalhe de demonstração com reprodução desactivada, favorito.
 - WebView: restrições de settings, sem contactar o fornecedor (`autoLoad=false` no teste).
+- Android 7.0+: mínimo de instalação API 24 e APIs de datas `java.time` no dispositivo, via desugaring.
 
 ## Plano manual antes de distribuição
 
-1. Android 26 e 35, smartphone de gama média, orientação vertical/horizontal, 6,1 polegadas e fontes a 1,5×/2×.
+1. Android 7.0/API 24 e API 35, smartphone de gama média, orientação vertical/horizontal, 6,1 polegadas e fontes a 1,5×/2×.
 2. Primeira abertura sem API: banner demo, lista local funcional e nenhuma reprodução falsa.
 3. API configurada: conteúdos reais, ausência de resultados, 401/403/404/429, ligação lenta e offline, cancelamento ao escrever/voltar.
 4. Favoritos/lista/vistos persistentes após reinício; remoção, limpeza e pesquisa recente.

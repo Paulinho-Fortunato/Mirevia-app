@@ -55,6 +55,14 @@ O repositório não inclui tokens. `local.properties`, `.env`, keystores e artef
 
 Não adicionar logging HTTP de headers/corpos nem registos de URLs de reprodução, cookies ou dados pessoais. Não desactivar TLS no ambiente local para fazer uma build passar.
 
+### Opção pessoal: token dentro do APK
+
+A pedido do proprietário, `docs/ci/build-apk.yml.example` prepara um APK debug com TMDB directa: o token é obtido de um GitHub secret na compilação e fica no `BuildConfig` da aplicação. Não é escrito literalmente neste repositório. **Todos os destinatários do APK podem recuperá-lo**; em repositórios públicos, ter acesso ao artefacto pode bastar. O backend mantém-se como alternativa para quem necessite de guardar a credencial fora do cliente.
+
+Este template só aceita execução manual, evita fornecer o token aos testes/lint em demonstração, desactiva caches partilhadas e de build/configuração e não publica fontes geradas ou logs de headers. Estas medidas reduzem exposição acidental no CI, mas não escondem o token no binário disponibilizado. A assinatura debug garante a assinatura do pacote, não a confidencialidade do token.
+
+A opção de keystore debug persistente usa um secret separado para manter a assinatura entre builds. Não a guardar no Git, não a publicar como artefacto e não a confundir com assinatura de produção. A activação exige uma conta autorizada a escrever workflows.
+
 ## Dados locais e consentimento
 
 Consentimento antes de criar o iframe; pode ser revogado nas definições. Falha ao ler preferências desactiva histórico e consentimento por segurança e produz aviso. Erros de escrita são apresentados, não convertidos em sucesso fictício.
@@ -63,9 +71,9 @@ Room não guarda cookies ou credenciais. Histórico limitado a 300 registos, pes
 
 ## Antes de distribuir
 
-- Compilar, executar lint e os testes instrumentados, inclusive API 26 e 35.
+- Compilar, executar lint e os testes instrumentados, inclusive Android 7.0/API 24 e API 35. O suporte configurado não comprova execução real num dispositivo.
 - Rever as políticas de rede em dispositivo, redireccionamentos e origens efectivas com o fornecedor, sem extracção de streams.
 - Confirmar por escrito as dependências de origens e os requisitos de cookies/storage.
 - Rever o backend, atribuição TMDB e os documentos legais; acrescentar identificação/contacto do responsável.
 - Testar recusa/revogação de consentimento, ausência de WebView, offline, TLS inválido, segundo plano, libertação de memória e acessibilidade.
-- Não distribuir um APK debug que contenha a tua credencial pessoal.
+- Um APK pessoal com token embutido implica aceitar que esse token é recuperável. Não o partilhar publicamente se a credencial tiver de permanecer privada; nesse caso, usar um backend.

@@ -17,7 +17,14 @@ def require(value, message):
 for path in (ROOT / 'app/src/main').rglob('*.xml'):
     ET.parse(path)
 with (ROOT / 'gradle/libs.versions.toml').open('rb') as f:
-    tomllib.load(f)
+    catalog = tomllib.load(f)
+
+# API 24/25 do not provide java.time natively; minSdk alone is not enough.
+app_gradle = (ROOT / 'app/build.gradle.kts').read_text()
+require(re.search(r'(?m)^\s*minSdk\s*=\s*24\s*$', app_gradle), 'Android 7.0 requires minSdk 24')
+require('isCoreLibraryDesugaringEnabled = true' in app_gradle, 'Enable core library desugaring for java.time below API 26')
+require('coreLibraryDesugaring(libs.desugar.jdk.libs)' in app_gradle, 'Missing Android desugaring dependency')
+require(catalog['libraries']['desugar-jdk-libs']['module'] == 'com.android.tools:desugar_jdk_libs', 'Unexpected desugaring library')
 
 manifest = ET.parse(ROOT / 'app/src/main/AndroidManifest.xml').getroot()
 permissions = {node.get(ANDROID + 'name') for node in manifest.findall('uses-permission')}
@@ -60,5 +67,16 @@ require(hashlib.sha256(wrapper_jar.read_bytes()).hexdigest() == expected, 'Wrapp
 with zipfile.ZipFile(wrapper_jar) as jar:
     require('org/gradle/wrapper/GradleWrapperMain.class' in jar.namelist(), 'Incomplete Gradle wrapper')
 require('distributionSha256Sum=f397b287023acdba1e9f6fc5ea72d22dd63669d59ed4a289a29b1a76eee151c6' in (ROOT / 'gradle/wrapper/gradle-wrapper.properties').read_text(), 'Gradle distribution checksum missing')
+# The token-bearing APK workflow is intentionally separate from demo PR validation.
+apk_workflow = (ROOT / 'docs/ci/build-apk.yml.example').read_text()
+require(re.search(r'(?m)^on:\s*\n  workflow_dispatch:\s*$', apk_workflow), 'APK template must be manually dispatched')
+require(not re.search(r'(?m)^  (push|pull_request|pull_request_target|workflow_run):', apk_workflow), 'Do not expose the embedded-token build on automatic events')
+for required in ['secrets.TMDB_READ_TOKEN', "TMDB_PROXY_BASE_URL: ''", 'cache-disabled: true', '--no-build-cache', '--no-configuration-cache', ':app:assembleDebug', 'apksigner" verify --verbose --min-sdk-version 24', 'aapt" dump badging', "sdkVersion:'24'", 'artifacts/Mirevia.apk', 'if-no-files-found: error']:
+    require(required in apk_workflow, f'Missing personal APK workflow invariant: {required}')
+require('pull_request_target' not in apk_workflow, 'Do not execute untrusted PR code with the APK secret')
+demo_workflow = (ROOT / 'docs/ci/android.yml.example').read_text()
+require('api: [24, 35]' in demo_workflow and 'api-level: ${{ matrix.api }}' in demo_workflow, 'Include Android 7.0 in the emulator test matrix')
 print(f'Source checks: {len(sources)} production Kotlin files; XML, TOML, manifest, iframe and security invariants OK.')
+print('Android 7.0 configuration: minSdk 24, core library desugaring and API 24/35 test matrix present.')
+print('Personal APK template: manual-only, embedded-token build flags and signature check present.')
 print('These checks do not prove compilation, runtime safety or live playback compatibility.')

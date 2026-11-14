@@ -156,6 +156,7 @@ class SecureEmbedWebView(
                     block("O Android identificou uma navegação insegura e bloqueou-a.")
                 }
 
+                @androidx.annotation.RequiresApi(26)
                 override fun onRenderProcessGone(
                     view: WebView,
                     detail: RenderProcessGoneDetail,
