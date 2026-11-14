@@ -14,8 +14,21 @@ def require(value, message):
     if not value:
         raise AssertionError(message)
 
+# This style attribute is XML API 27+, even though minSdk remains 24.
+navigation_bar_items = []
 for path in (ROOT / 'app/src/main').rglob('*.xml'):
-    ET.parse(path)
+    xml = ET.parse(path)
+    for item in xml.iter('item'):
+        if item.get('name') == 'android:windowLightNavigationBar':
+            qualifier = re.search(r'(?:^|-)v(\d+)(?:-|$)', path.parent.name)
+            require(qualifier and int(qualifier.group(1)) >= 27, f'windowLightNavigationBar requires API 27 resource qualification: {path.relative_to(ROOT)}')
+            navigation_bar_items.append(path)
+require(navigation_bar_items == [ROOT / 'app/src/main/res/values-v27/styles.xml'], 'Define windowLightNavigationBar once, only in values-v27/styles.xml')
+base_styles = ET.parse(ROOT / 'app/src/main/res/values/styles.xml')
+base_theme = base_styles.find("style[@name='Theme.Mirevia']")
+require(base_theme is not None and base_theme.get('parent') == 'Base.Theme.Mirevia', 'Keep the base theme fallback for Android API 24-26')
+versioned_theme = ET.parse(navigation_bar_items[0]).find("style[@name='Theme.Mirevia']")
+require(versioned_theme is not None and versioned_theme.get('parent') == 'Base.Theme.Mirevia', 'API 27 theme must inherit the common base theme')
 with (ROOT / 'gradle/libs.versions.toml').open('rb') as f:
     catalog = tomllib.load(f)
 
@@ -100,6 +113,7 @@ for path in workflow_paths:
 require(sdk_setup_count >= 3, 'Missing Android SDK setup in CI templates')
 print(f'Android SDK setup: {sdk_setup_count} steps explicitly avoid the removed legacy tools package.')
 print(f'Source checks: {len(sources)} production Kotlin files; XML, TOML, manifest, iframe and security invariants OK.')
+print('Theme compatibility: windowLightNavigationBar only in values-v27, with a base fallback for API 24-26.')
 print('Reported Kotlin regressions: player-specific immersive helper and named search onClick present.')
 print('Android 7.0 configuration: minSdk 24, core library desugaring and API 24/35 test matrix present.')
 print('Personal APK template: manual-only, embedded-token build flags and signature check present.')

@@ -7,11 +7,12 @@
 | Compilação Kotlin JVM de `:core` e `EmbedPage` | Executada com Kotlin 2.1.20 e Java 17 |
 | JUnit: domínio, URLs, fornecedor, filtros, wrapper | **22 testes passaram** |
 | Parser PSI Kotlin, incluindo testes e scripts Gradle | **64 ficheiros sem erros de sintaxe** na verificação anterior; os novos testes de compatibilidade Android 7.0 e da linha de pesquisa ainda não foram verificados com PSI |
-| `python3 scripts/verify_source.py` | Passou: XML, TOML, manifesto, permissões, invariantes do iframe/WebView, checksums e restrições do template de APK |
+| `python3 scripts/verify_source.py` | Passou: XML, TOML, manifesto, permissões, invariantes do iframe/WebView, checksums, templates e qualificação API 27 do tema sem duplicação em API 26 |
 | Workflow pessoal e dois templates em `ci/` | YAML analisado; scripts passaram `bash -n`; os quatro setups Android pedem explicitamente `platform-tools`, sem `tools` legado; matriz API 24/35 conferida |
 | Gates de minSdk e secret | Verificados anteriormente com dados simulados, sem APK ou credencial real |
 | Actions: preparação Android SDK | A execução `43613957749` passou setup Java/Android/Gradle e instalação SDK após a configuração explícita de pacotes |
-| Actions: Kotlin Android | A mesma execução completou `:core:test`, mas falhou em `:app:compileDebugKotlin`: conflito com `Activity.setImmersive` e callback de `MediaSearchRow`; correcções locais ainda sem nova compilação Android |
+| Actions: Kotlin Android | A execução `43613957749` teve as falhas de `Activity.setImmersive` e `MediaSearchRow`; num log posterior fornecido pelo proprietário, a compilação Kotlin e as tarefas de unitários avançaram até ao lint |
+| Actions: lint Android | O log posterior falhou em `:app:lintDebug` com um erro `NewApi`: `windowLightNavigationBar` na pasta API 26; a remoção da cópia antiga ainda requer nova execução Android para confirmar o resultado completo |
 | `./gradlew :core:test :app:assembleDebug` | **Bloqueado antes da compilação**: SSLHandshakeException/EOF ao obter a distribuição Gradle no ambiente com rede restrita |
 | Android SDK / emulador | Não disponíveis neste ambiente |
 | Testes de Retrofit, mapeamentos e ViewModels via Gradle | Escritos, ainda não executados aqui |
@@ -62,13 +63,23 @@ Para validar as correcções, publicar os ficheiros Kotlin actualizados na branc
 ./gradlew :app:connectedDebugAndroidTest
 ```
 
+## Lint `NewApi`: atributo do tema exige API 27
+
+O log posterior do proprietário chegou a `:app:lintDebug` e reportou `android:windowLightNavigationBar` em `values-v26/styles.xml`. Esse atributo XML exige API 27. Na revisão inicial desta branch existiam **as duas cópias**, em `values-v26` e `values-v27`; criar a pasta nova sem eliminar a definição antiga não resolvia o erro.
+
+Foi removido apenas `values-v26/styles.xml`, depois de confirmar que era idêntico ao ficheiro API 27. O conteúdo de `values-v27/styles.xml`, o tema base e o Gradle foram preservados. Não se aumentou `minSdk`, não se desactivou lint/NewApi e não se criou uma baseline para ocultar a falha.
+
+O verificador de fontes exige agora uma única definição do atributo em `values-v27`, qualificação mínima API 27 e herança da base comum para API 24–26. Antes da remoção, o novo check rejeitou a cópia API 26 existente; depois da remoção passou. É uma verificação de regressão deste caso, não uma análise completa das APIs Android.
+
+A execução Android completa da correcção continua pendente. Depois de publicar a alteração, executar `./gradlew :app:lintDebug :app:assembleDebug` ou iniciar uma nova execução manual do workflow na revisão actualizada. Os avisos de ícones `OpenInNew` obsoletos e de criação de `Json` não eram o erro fatal indicado no log.
+
 ## Compatibilidade Android 7.0 — pendente de execução
 
 A versão mínima configurada é API 24. Como `TmdbCatalogRepository` e `LibraryScreen` usam `java.time`, o módulo Android activa core library desugaring com `desugar_jdk_libs` 2.1.5; reduzir apenas `minSdk` não seria suficiente. `compileSdk`/`targetSdk` permanecem em 35.
 
 `AndroidCompatibilityTest` verifica o `minSdkVersion` do APK instalado e as operações de `LocalDate`, `Instant`, `ZoneId` e `DateTimeFormatter` usadas pelo catálogo/histórico. Deve ser executado em **API 24**, não apenas num JVM de desenvolvimento ou num Android 8+ com essas classes nativas. O teste não contacta a TMDB nem o fornecedor e não contém credenciais.
 
-Os recursos de navegação exclusivos de API 26 ficam em `values-v26`; o tema de API 24 mantém a base escura. Os callbacks WebView de API 26/27 estão anotados para essas versões e as funcionalidades AndroidX WebKit continuam protegidas por verificações de capacidade, sem relaxar a política de segurança.
+O atributo XML `android:windowLightNavigationBar` exige **API 27 (Android 8.1)**, não API 26. Fica apenas em `values-v27/styles.xml`, herdando `Base.Theme.Mirevia`; a cópia antiga em `values-v26` foi removida. Em API 24–26 usa-se `Theme.Mirevia` de `values/styles.xml`, com a base escura comum. O mínimo de instalação permanece em API 24. Os callbacks WebView de API 26/27 estão anotados para essas versões e as funcionalidades AndroidX WebKit continuam protegidas por verificações de capacidade, sem relaxar a política de segurança.
 
 Em Android Studio, cria um emulador Android 7.0/API 24 (ou liga um dispositivo real equivalente), selecciona-o e executa:
 

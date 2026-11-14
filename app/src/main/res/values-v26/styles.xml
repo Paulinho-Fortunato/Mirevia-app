@@ -1,5 +1,0 @@
-<resources>
-    <style name="Theme.Mirevia" parent="Base.Theme.Mirevia">
-        <item name="android:windowLightNavigationBar">false</item>
-    </style>
-</resources>
