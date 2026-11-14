@@ -40,8 +40,8 @@ class AppContainer(context: Context) {
                     UnconfiguredCatalogRepository()
                 }
         }
-    // Approved by the project owner. Do not add CDN/ad/redirect hosts without provider
-    // confirmation.
+    // Initial playback/share sources only. Keep these exact-host routes separate from the
+    // owner's consented HTTPS resource/frame policy in IframeRequestPolicy.
     val embedPolicy = EmbedUrlPolicy(setOf(EmbedMoviesUrlBuilder.DOCUMENTED_HOST))
     private val videoProvider: VideoSourceProvider = EmbedMoviesProvider(embedPolicy.allowedHosts)
     val resolveVideoSource = ResolveVideoSource(videoProvider, embedPolicy)

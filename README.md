@@ -4,7 +4,7 @@ Aplicação Android pessoal e não comercial para descobrir filmes e séries, co
 
 Interface em português, identidade cinematográfica Mirevia (carvão, marfim e acento cereja), ícones vectoriais e sem emojis. Não existem subscrições, pagamentos, publicidade própria, downloads ou extracção de vídeos.
 
-> **Revisão 0.2.0:** redesign, selecção de episódios, partilha e diagnóstico de origens implementados nas fontes. **37 testes JVM passaram** e **81 ficheiros Kotlin passaram a verificação de sintaxe**. O proprietário reportou conseguir instalar a versão anterior, mas **esta revisão ainda não foi compilada/instalada aqui**: faltam SDK/emulador e acesso normal aos repositórios Android. A reprodução está bloqueada por uma origem ainda não identificada/aprovada; não se promete que já funciona. O alerta do Google Play Protect precisa do texto exacto e da análise do APK, não deve ser ignorado. Ver [guia de diagnóstico](docs/player-troubleshooting.md).
+> **Revisão 0.2.1/código 3:** a pedido do proprietário, os recursos e frames internos do player aceitam **HTTPS (443) sem lista por domínio**, incluindo `static.cloudflareinsights.com`. O endereço inicial/partilhável continua restrito às rotas oficiais de `myembed.biz`. É pedido **consentimento renovado** para a maior exposição a terceiros. A validação JVM/sintaxe está em [testing.md](docs/testing.md); **não foi gerado/instalado um APK desta revisão aqui**, nem comprovada reprodução. O alerta do Google Play Protect continua por investigar; não deve ser ignorado. Ver [decisão e limites](docs/iframe-https-policy.md) e [guia de diagnóstico](docs/player-troubleshooting.md).
 
 ## Funcionalidades
 
@@ -17,8 +17,8 @@ Interface em português, identidade cinematográfica Mirevia (carvão, marfim e 
 - Lista pessoal, favoritos, vistos e episódios vistos em Room.
 - “Players recentes” e histórico local **sem percentagens, progresso ou retoma inventados**.
 - `VideoSourceProvider`, `EmbedMoviesProvider`, `SecureEmbedWebView` e `PlayerScreen`.
-- Iframe oficial responsivo em retrato/paisagem, consentimento prévio, fullscreen e erro/indisponibilidade.
-- Diagnóstico local do domínio/esquema bloqueado, sem guardar URLs de recursos, queries ou tokens; nenhuma autorização automática.
+- Iframe oficial responsivo em retrato/paisagem; consentimento prévio versionado para recursos/frames HTTPS de terceiros, fullscreen e erro/indisponibilidade.
+- Diagnóstico local apenas de motivo/domínio/esquema/porta, distinguindo a origem inicial do alcance HTTPS dos recursos; sem guardar URLs, queries ou tokens.
 - Partilha Android do título/página TMDB ou link MyEmbed validado, incluindo o episódio; não partilha ficheiros de vídeo.
 - Identidade pública do pacote, permissões e certificados em Definições → Segurança e assinatura do APK; não é um selo de segurança.
 - Preferências DataStore, redução de animações, documentos legais editáveis e atribuição TMDB.
@@ -73,7 +73,7 @@ Não foi criado um backend público ou uma URL fictícia. Sem proxy numa release
 
 ## Reprodução exclusivamente por iframe
 
-A documentação oficial de [embedmovies.org](https://embedmovies.org/#guia-rapido), consultada em 14-11-2026, usa **`myembed.biz`** como host dos iframes. O proprietário do projecto confirmou expressamente a sua autorização. A allowlist actual contém **apenas esse host exacto**, não todos os seus subdomínios.
+A documentação oficial de [embedmovies.org](https://embedmovies.org/#guia-rapido), consultada em 14-11-2026, usa **`myembed.biz`** como host dos iframes. O proprietário do projecto confirmou expressamente a sua autorização. A allowlist de **fontes iniciais e links partilháveis** contém apenas esse host exacto, não todos os seus subdomínios. Não é a política de recursos do iframe.
 
 ```text
 Filme TMDB:  https://myembed.biz/filme/{tmdbId}
@@ -84,7 +84,11 @@ Episódio:    https://myembed.biz/serie/{tmdbId}/{season}/{episode}
 
 O player é incorporado numa página local HTTPS com um `<iframe>` real. Não é carregado em ExoPlayer, não são extraídos URLs, não há downloads, conversão, remoção de publicidade ou contorno de DRM/paywalls/CAPTCHA/bloqueios geográficos.
 
-**Uma URL válida não garante conteúdo disponível.** Hosts de CDNs, scripts, anúncios ou outros recursos não confirmados podem impedir a sessão. A allowlist não é alargada automaticamente. O novo diagnóstico mostra apenas a origem para ser confirmada com o fornecedor. Consultar [docs/player-troubleshooting.md](docs/player-troubleshooting.md) e [docs/provider-integration.md](docs/provider-integration.md) antes de alterar a integração.
+**Recursos e frames internos:** depois de consentimento da revisão actual, o documento do fornecedor pode carregar HTTPS na porta padrão 443 de qualquer domínio remoto, sem confirmação por hostname, também no caminho de service workers interceptável. A CSP própria permite `frame-src https://*:443` para não impedir os redireccionamentos/frames HTTPS; a página principal permanece no wrapper local. HTTP, esquemas perigosos, credenciais no endereço, portas alternativas e o uso remoto da origem reservada ao wrapper continuam recusados nos pedidos observáveis. TLS, Safe Browsing quando suportado, cookies de terceiros desactivados e os bloqueios de ficheiros/downloads/permissões/janelas não verificadas mantêm-se.
+
+O proprietário forneceu o bloqueio real de `static.cloudflareinsights.com` e escolheu expressamente este alcance em vez de aprovar um host de cada vez. A [documentação Cloudflare](https://developers.cloudflare.com/web-analytics/faq/) identifica esse host como Web Analytics, não como prova de vídeo disponível. O fornecedor e terceiros podem receber IP, dados técnicos/navegação e métricas, e apresentar publicidade. A Mirevia não injecta esses scripts, não é um ad blocker e HTTPS **não certifica a confiança das origens**.
+
+O consentimento antigo, que só mencionava `myembed.biz`, deixa de autorizar o carregamento. Player e definições mostram a mesma confirmação; podes recusar/revogar sem apagar a biblioteca. **Uma URL válida ou um recurso permitido não garante reprodução.** Políticas do fornecedor, TLS/Safe Browsing, cookies e capacidades do motor ainda podem impedir o player. Ver [docs/iframe-https-policy.md](docs/iframe-https-policy.md) e [docs/provider-integration.md](docs/provider-integration.md).
 
 - Temporada isolada e especiais/temporada 0 não têm formato de reprodução confirmado; não são inventadas rotas.
 - PiP Android, posição, duração e conclusão automática **não são anunciados nem simulados**, por falta de contrato oficial de eventos. O iframe mantém os seus controlos originais.
@@ -92,7 +96,7 @@ O player é incorporado numa página local HTTPS com um `<iframe>` real. Não é
 - Abrir no navegador é opcional e leva ao **playground oficial com iframe**, com indicação do ID, nunca a um stream directo.
 - Ao ir para segundo plano, o WebView é destruído; ao regressar, a sessão é recarregada.
 
-A WebView aplica validação de origens, mas os callbacks públicos **não são um firewall completo de todos os transportes/redireccionamentos internos**. Os limites e validações ainda necessárias estão documentados em [docs/security.md](docs/security.md).
+A WebView separa a validação da fonte inicial da política HTTPS de recursos, mas os callbacks públicos **não são um firewall completo de todos os transportes/redireccionamentos internos**. Os limites e validações ainda necessárias estão documentados em [docs/security.md](docs/security.md).
 
 ## Build de teste e instalação
 
@@ -138,7 +142,8 @@ python3 scripts/verify_source.py       # Python 3.11+, sem SDK
 | `docs/provider-integration.md` | Documentação consultada, URLs, capacidades e limitações |
 | `docs/security.md` | Políticas reais e limites de segurança da WebView |
 | `docs/player-troubleshooting.md` | Diagnóstico do player, partilha e investigação segura do Play Protect |
-| `docs/player-design-plan.md` | Plano da revisão visual e dos episódios, apresentado antes de programar |
+| `docs/player-design-plan.md` | Histórico do plano 0.2.0 da revisão visual e dos episódios |
+| `docs/iframe-https-policy.md` | Decisão 0.2.1, políticas separadas, renovação do consentimento e riscos de terceiros |
 | `docs/testing.md` | Testes, resultados e plano de validação em dispositivo |
 | `docs/ci/` | Templates inactivos de validação e APK instalável, com instruções de activação e secrets |
 | `app/src/main/assets/privacy.txt` | Política de privacidade editável |
@@ -148,7 +153,7 @@ Room exporta o esquema v1 em `app/schemas` na primeira build. Conserva esse esqu
 
 ## Privacidade e créditos
 
-Sem conta, analytics ou sincronização na cloud. Lista, favoritos, vistos e histórico permanecem no dispositivo. O player externo e as APIs recebem dados técnicos de ligação; o contacto com o player exige consentimento. Há controlos de limpeza e documentos legais na aplicação. Antes de distribuir, acrescenta identificação/contacto do responsável e revê as autorizações e políticas reais de terceiros/backend.
+Sem conta, analytics **próprios** ou sincronização na cloud. Lista, favoritos, vistos e histórico permanecem no dispositivo. O player externo, os terceiros que carregar (incluindo métricas/publicidade) e as APIs recebem dados técnicos de ligação; o contacto com o player exige consentimento actual. Há controlos de limpeza e documentos legais na aplicação. Antes de distribuir, acrescenta identificação/contacto do responsável e revê as autorizações e políticas reais de terceiros/backend.
 
 **This product uses the TMDB API but is not endorsed or certified by TMDB.**
 

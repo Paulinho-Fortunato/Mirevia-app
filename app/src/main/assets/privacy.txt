@@ -1,12 +1,12 @@
 Mirevia — Política de privacidade
-Versão inicial: 14 de Novembro de 2026
+Revisão 0.2.1: 14 de Novembro de 2026 — recursos HTTPS de terceiros e consentimento renovado
 
 Projecto pessoal e não comercial. Este documento pode ser editado em app/src/main/assets/privacy.txt. Deve ser revisto pelo responsável antes de qualquer distribuição pública.
 
 1. Dados guardados localmente
 A Mirevia guarda favoritos, lista pessoal, marcações manuais de visto, episódios vistos, pesquisas recentes e registos de abertura/saída do player. Estes dados ficam na base de dados privada da aplicação. As preferências são guardadas através de DataStore.
 
-Não existe conta de utilizador, sincronização na cloud, publicidade própria, subscrição, cobrança, analytics ou recolha de identificadores publicitários. O backup automático dos dados da aplicação está desactivado.
+Não existe conta de utilizador, sincronização na cloud, publicidade própria, subscrição, cobrança, analytics próprios ou recolha de identificadores publicitários. O backup automático dos dados da aplicação está desactivado.
 
 2. Histórico e progresso
 O histórico regista a abertura do player, não confirma que o vídeo começou ou terminou. A Mirevia não mede a posição do vídeo externo, não lê o seu DOM e não simula progresso. Os registos estão limitados aos 300 mais recentes; as pesquisas, às 20 mais recentes. Podes desactivar o histórico e apagá-lo nas definições.
@@ -17,9 +17,13 @@ Quando a TMDB está configurada, a aplicação envia consultas de catálogo, pes
 As recomendações por título exigem consultar à TMDB o identificador de um conteúdo da biblioteca. Não são enviadas a lista completa nem informações de identidade. Sem configuração de API, os exemplos de demonstração são locais e explicitamente fictícios.
 
 4. Player externo
-A reprodução é fornecida por um player externo através de um embed autorizado. O iframe do EmbedMovies é alojado no host myembed.biz, documentado por embedmovies.org e aprovado para este projecto. Antes do primeiro carregamento é solicitado consentimento. O fornecedor pode receber o endereço IP, dados do dispositivo e informações de navegação relacionadas com o seu player.
+A reprodução é fornecida por um player externo através de um embed autorizado. O endereço inicial do iframe EmbedMovies está limitado às rotas oficiais de myembed.biz, documentadas por embedmovies.org e aprovadas para este projecto. A página principal da Mirevia permanece no documento local de incorporação.
 
-A Mirevia não controla a disponibilidade, os eventuais anúncios, as práticas de dados ou o conteúdo de terceiros. A allowlist de segurança pode impedir recursos de hosts não confirmados. A aplicação não remove anúncios nem contorna bloqueios. Cookies de terceiros estão desactivados por omissão. A Mirevia solicita a limpeza de cookies, cache e armazenamento WebView ao sair do leitor. A API pública não garante a remoção imediata de todos os dados internos do motor; a limpeza completa pode ser feita nas definições do Android. Não é prometida retoma entre sessões.
+Por decisão do proprietário, o documento do fornecedor pode carregar recursos e frames internos HTTPS (porta padrão 443) de outros domínios, sem lista ou confirmação por hostname. Isso inclui CDNs, publicidade e serviços de métricas como Cloudflare Insights, incluindo static.cloudflareinsights.com. A Mirevia não injecta scripts nem instala um SDK de analytics próprio: deixa o documento remoto funcionar normalmente dentro destes limites. O fornecedor e esses terceiros podem receber o teu IP, dados técnicos do dispositivo e informações de navegação relacionadas com o player. HTTPS protege o transporte, não certifica a origem como fiável.
+
+É solicitado consentimento explícito antes de criar o WebView. A aprovação antiga que só mencionava myembed.biz não é reutilizada: esta revisão exige confirmação renovada, tanto no player como ao activar pelas definições. Podes recusar ou revogar nas definições; isso impede novos carregamentos e não apaga a biblioteca. Falhas de leitura/escrita não são tratadas como consentimento.
+
+A Mirevia não controla a disponibilidade, os eventuais anúncios, as práticas de dados ou o conteúdo de terceiros. Não remove anúncios nem contorna restrições do fornecedor. TLS e Safe Browsing mantêm-se quando suportados; HTTP, esquemas perigosos, ficheiros, downloads, permissões sensíveis e janelas não verificadas continuam restringidos. Cookies de terceiros estão desactivados. É pedida a limpeza de cookies, cache e armazenamento WebView ao sair. Os callbacks públicos não são um firewall de todos os transportes/redireccionamentos e a API de limpeza não garante remoção imediata de todos os dados internos do motor. Podes limpar os dados completos nas definições do Android. Não é prometida retoma entre sessões.
 
 5. Ligações externas
 Trailers oficiais podem abrir YouTube ou Vimeo após confirmação. Quando autorizado nas definições, pode ser aberta a página oficial de demonstração do EmbedMovies no navegador, onde o próprio serviço utiliza iframe. O navegador tem políticas de dados e armazenamento independentes da Mirevia. Não são abertos links directos de streams.
@@ -29,7 +33,7 @@ A partilha é opcional e usa a folha Android: podes enviar o título/página TMD
 6. Segurança e retenção
 A aplicação exige HTTPS, usa a confiança TLS do sistema, não grava tokens ou cookies em registos e não pede permissões de ficheiros, localização, câmara ou microfone. Metadados e imagens podem permanecer temporariamente em cache, limitada pela aplicação. A opção de apagar a biblioteca não apaga as caches de metadados/imagens; podes limpar todos os dados da aplicação nas definições do Android.
 
-Se o iframe pedir uma origem não autorizada, a sessão é interrompida. O diagnóstico retém apenas motivo, domínio, esquema e porta, nunca o URL bruto, caminho, query, fragmento ou credenciais. Fica em memória e não é guardado no histórico, enviado automaticamente ou usado para autorizar o domínio. Só é copiado/partilhado por acção explícita.
+Um domínio HTTPS não listado já não causa bloqueio por si só. Se um pedido violar as restrições restantes, se a navegação principal tentar sair do documento local ou se o motor identificar um risco, a sessão é interrompida. O diagnóstico retém apenas motivo, domínio, esquema e porta, nunca o URL bruto, caminho, query, fragmento ou credenciais. O relatório distingue a fonte inicial autorizada do alcance HTTPS dos recursos. Fica em memória e não é guardado no histórico, enviado automaticamente ou usado para adicionar uma fonte inicial. Só é copiado/partilhado por acção explícita.
 
 O ecrã de segurança lê apenas a identidade pública do próprio pacote instalado: versão, permissões e fingerprints dos certificados de assinatura. Não lê chaves privadas, não enumera outras apps e não envia dados a serviços de análise. A assinatura não é uma certificação de segurança. Mantém o Google Play Protect activo e investiga qualquer alerta antes de continuar a usar a app.
 

@@ -10,6 +10,7 @@ import android.view.View
 import android.webkit.*
 import androidx.webkit.*
 import ao.mirevia.core.playback.EmbedUrlPolicy
+import ao.mirevia.core.playback.IframeRequestPolicy
 import ao.mirevia.core.playback.PlaybackBlock
 import ao.mirevia.core.playback.PlaybackBlockKind
 import ao.mirevia.core.playback.VideoSource
@@ -28,6 +29,13 @@ class SecureEmbedWebView(
     private val onSecurityBlocked: (PlaybackBlock) -> Unit,
     autoLoad: Boolean = true,
 ) : WebView(context) {
+    // Retained for deterministic callback tests even on API 24 (WebView's getter is API 26+).
+    internal val requestClient: WebViewClient
+    internal val workerClient =
+        object : ServiceWorkerClientCompat() {
+            override fun shouldInterceptRequest(request: WebResourceRequest): WebResourceResponse? =
+                filterRequest(request)
+        }
     @Volatile private var released = false
     private var rendererGone = false
     private val securityFailureReported = java.util.concurrent.atomic.AtomicBoolean(false)
@@ -82,16 +90,14 @@ class SecureEmbedWebView(
         setDownloadListener { _, _, _, _, _ ->
             block(PlaybackBlock.local(PlaybackBlockKind.DOWNLOAD))
         }
-        webViewClient =
+        requestClient =
             object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(
                     view: WebView,
                     request: WebResourceRequest,
                 ): Boolean {
                     val url = request.url.toString()
-                    val allowed =
-                        if (request.isForMainFrame) url == EmbedPage.URL
-                        else policy.isAllowedNavigation(url)
+                    val allowed = IframeRequestPolicy.isAllowedRequest(url, request.isForMainFrame)
                     if (!allowed) block(PlaybackBlock.request(PlaybackBlockKind.NAVIGATION, url))
                     return !allowed
                 }
@@ -167,6 +173,7 @@ class SecureEmbedWebView(
                     return true
                 }
             }
+        webViewClient = requestClient
         webChromeClient =
             object : WebChromeClient() {
                 override fun onShowCustomView(view: View, callback: CustomViewCallback) {
@@ -217,12 +224,17 @@ class SecureEmbedWebView(
     private fun filterRequest(request: WebResourceRequest): WebResourceResponse? {
         if (released || securityFailureReported.get()) return deniedResponse()
         val url = request.url.toString()
-        if (url == EmbedPage.URL)
+        if (!IframeRequestPolicy.isAllowedRequest(url, request.isForMainFrame)) {
+            val diagnostic =
+                if (request.isForMainFrame) PlaybackBlock.request(PlaybackBlockKind.NAVIGATION, url)
+                else PlaybackBlock.request(PlaybackBlockKind.RESOURCE, url)
+            block(diagnostic)
+            return deniedResponse()
+        }
+        if (request.isForMainFrame)
             return assetLoader.shouldInterceptRequest(request.url) ?: deniedResponse()
-        if (policy.isAllowedNavigation(url))
-            return null // Let WebView fetch normally; never read or extract a response.
-        block(PlaybackBlock.request(PlaybackBlockKind.RESOURCE, url))
-        return deniedResponse()
+        // Consented remote HTTPS: let the iframe/browser fetch normally. Never read a response.
+        return null
     }
 
     private fun configureServiceWorkers() {
@@ -244,13 +256,7 @@ class SecureEmbedWebView(
                 WebViewFeature.isFeatureSupported(WebViewFeature.SERVICE_WORKER_BLOCK_NETWORK_LOADS)
             )
                 workerSettings.setBlockNetworkLoads(false)
-            controller.setServiceWorkerClient(
-                object : ServiceWorkerClientCompat() {
-                    override fun shouldInterceptRequest(
-                        request: WebResourceRequest
-                    ): WebResourceResponse? = filterRequest(request)
-                }
-            )
+            controller.setServiceWorkerClient(workerClient)
         } else {
             block(PlaybackBlock.local(PlaybackBlockKind.WEBVIEW_FEATURE))
         }

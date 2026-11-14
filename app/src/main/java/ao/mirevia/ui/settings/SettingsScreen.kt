@@ -40,6 +40,7 @@ fun SettingsScreen(container: AppContainer, library: LibraryViewModel, onLegal: 
     var clearDialog by remember { mutableStateOf<String?>(null) }
     var settingError by remember { mutableStateOf(false) }
     var securitySheet by remember { mutableStateOf(false) }
+    var consentDialog by remember { mutableStateOf(false) }
     fun update(block: suspend () -> Unit) {
         coroutineScope.launch {
             try {
@@ -114,10 +115,11 @@ fun SettingsScreen(container: AppContainer, library: LibraryViewModel, onLegal: 
                 }
                 PreferenceSwitch(
                     "Consentimento do player externo",
-                    "O fornecedor pode receber o teu endereço IP e dados técnicos. Desactivar impede novos carregamentos até nova confirmação.",
+                    "Permite recursos e frames HTTPS de terceiros, incluindo métricas e publicidade do fornecedor. Requer confirmação. Desactivar impede novos carregamentos.",
                     preferences.externalPlayerConsent,
-                ) {
-                    update { container.preferences.setPlayerConsent(it) }
+                ) { enabled ->
+                    if (enabled) consentDialog = true
+                    else update { container.preferences.setPlayerConsent(false) }
                 }
             }
         }
@@ -250,6 +252,17 @@ fun SettingsScreen(container: AppContainer, library: LibraryViewModel, onLegal: 
             dismissButton = { TextButton(onClick = { clearDialog = null }) { Text("Cancelar") } },
         )
     }
+    if (consentDialog)
+        ExternalPlayerConsentDialog(
+            onAccept = {
+                update {
+                    container.preferences.setPlayerConsent(true)
+                    consentDialog = false
+                }
+            },
+            onDismiss = { consentDialog = false },
+            storageError = preferences.storageError,
+        )
     if (securitySheet) AppSecuritySheet { securitySheet = false }
     if (settingError)
         AlertDialog(

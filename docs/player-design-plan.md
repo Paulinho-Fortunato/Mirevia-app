@@ -1,4 +1,6 @@
-# Revisão do player, partilha e design
+# Revisão do player, partilha e design — histórico 0.2.0
+
+> Registo histórico da revisão 0.2.0 (PR #5). A regra de lista exacta abaixo foi substituída **só para recursos e frames internos** pela decisão explícita da revisão 0.2.1 em [iframe-https-policy.md](iframe-https-policy.md); fontes iniciais/partilha continuam exactas. Os resultados abaixo são daquela revisão, não uma nova build.
 
 ## Plano antes da implementação
 

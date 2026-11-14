@@ -414,39 +414,11 @@ fun PlayerScreen(
                 preferences?.externalPlayerConsent != true &&
                 foreground
         )
-            AlertDialog(
-                onDismissRequest = onExit,
-                title = { Text("Abrir player externo?") },
-                text = {
-                    Column(
-                        Modifier.verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        Text(
-                            "O iframe autorizado do EmbedMovies contacta myembed.biz. O fornecedor pode receber o teu IP e dados técnicos e apresentar os seus próprios anúncios. A Mirevia não altera o player."
-                        )
-                        Text(
-                            "A disponibilidade e os controlos pertencem ao fornecedor. Não será medido nem simulado o progresso. Podes revogar o consentimento nas definições."
-                        )
-                        state.storageNotice?.let {
-                            Text(it, color = MaterialTheme.colorScheme.error)
-                        }
-                        if (preferences?.storageError == true)
-                            Text(
-                                "Não foi possível ler as preferências. Fecha a aplicação e tenta novamente antes de carregar o player.",
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                    }
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = viewModel::grantConsent,
-                        enabled = preferences?.storageError != true,
-                    ) {
-                        Text("Aceitar e abrir")
-                    }
-                },
-                dismissButton = { TextButton(onClick = onExit) { Text("Cancelar") } },
+            ExternalPlayerConsentDialog(
+                onAccept = viewModel::grantConsent,
+                onDismiss = onExit,
+                storageError = preferences?.storageError == true,
+                storageNotice = state.storageNotice,
             )
         if (externalDialog)
             AlertDialog(

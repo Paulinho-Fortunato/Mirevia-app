@@ -73,8 +73,32 @@ require('OkHttpClient' not in webview and 'openConnection' not in webview, 'WebV
 for required in ['WebSettingsCompat.setSafeBrowsingEnabled(this, true)', 'callback.backToSafety(true)', 'PlaybackBlock.request(PlaybackBlockKind.RESOURCE, url)']:
     require(required in webview, f'Keep Safe Browsing and origin-only block diagnostics: {required}')
 require('onSecurityBlocked: (PlaybackBlock) -> Unit' in webview, 'Do not pass raw resource URLs to UI or diagnostics')
+# The owner explicitly selected remote HTTPS resources/frames without a per-host list.
+# Do not reuse the source/share allowlist here, or let the main frame leave the local wrapper.
+request_policy = (ROOT / 'core/src/main/kotlin/ao/mirevia/core/playback/IframeRequestPolicy.kt').read_text()
+require('if (isMainFrame) return url == LOCAL_DOCUMENT_URL' in request_policy, 'Keep the main document fixed to the local wrapper')
+for required in ['"https"', 'uri.rawUserInfo != null', 'uri.port != -1 && uri.port != 443', "host.trimEnd('.') == LOCAL_HOST"]:
+    require(required in request_policy, f'Keep the HTTPS resource boundary: {required}')
+require('allowedHosts' not in request_policy and 'static.cloudflareinsights.com' not in request_policy, 'Do not reintroduce a per-host HTTPS resource list')
+require(webview.count('IframeRequestPolicy.isAllowedRequest(url, request.isForMainFrame)') == 2, 'Apply the resource/frame policy to both navigation and interception')
+require('policy.isAllowedNavigation' not in webview, 'The strict source allowlist must not filter iframe resource domains')
+require(webview.count('filterRequest(request)') == 2 and 'controller.setServiceWorkerClient(workerClient)' in webview, 'WebView and service workers must delegate to the same request gate')
+require('require(policy.isValidSource(source))' in webview, 'Keep strict initial source validation before loading')
+preferences = (ROOT / 'app/src/main/java/ao/mirevia/data/local/PreferencesRepository.kt').read_text()
+for required in ['IframeRequestPolicy.hasCurrentConsent(', 'intPreferencesKey("external_player_consent_revision")', 'it[PLAYER_CONSENT_REVISION] = IframeRequestPolicy.CONSENT_REVISION', 'it.remove(PLAYER_CONSENT_REVISION)']:
+    require(required in preferences, f'Renew and revoke the broader player consent: {required}')
+require(re.search(r'externalPlayerConsent\s*=\s*IframeRequestPolicy.hasCurrentConsent\(', preferences), 'Do not grant broader access from the old boolean alone')
+settings_screen = (ROOT / 'app/src/main/java/ao/mirevia/ui/settings/SettingsScreen.kt').read_text()
+player_screen = (ROOT / 'app/src/main/java/ao/mirevia/ui/player/PlayerScreen.kt').read_text()
+require('if (enabled) consentDialog = true' in settings_screen and 'else update { container.preferences.setPlayerConsent(false) }' in settings_screen, 'Settings must ask before enabling consent, but allow revocation without approval')
+require('ExternalPlayerConsentDialog(' in settings_screen and 'ExternalPlayerConsentDialog(' in player_screen, 'Share the same explicit third-party disclosure in settings and player')
+require('preferences?.externalPlayerConsent == true' in player_screen, 'Do not create the iframe before current consent')
+consent_dialog = (ROOT / 'app/src/main/java/ao/mirevia/ui/components/ExternalPlayerConsentDialog.kt').read_text()
+for required in ['Cloudflare Insights', 'HTTPS não garante', 'enabled = !storageError', 'onClick = onAccept', 'onClick = onDismiss']:
+    require(required in consent_dialog, f'Keep explicit third-party disclosure and fail-closed consent: {required}')
+
 container = (ROOT / 'app/src/main/java/ao/mirevia/app/AppContainer.kt').read_text()
-require('EmbedUrlPolicy(setOf(EmbedMoviesUrlBuilder.DOCUMENTED_HOST))' in container, 'Do not silently expand the approved provider host set')
+require('EmbedUrlPolicy(setOf(EmbedMoviesUrlBuilder.DOCUMENTED_HOST))' in container, 'Initial playback/share sources must remain on the exact documented host, independently of HTTPS resources')
 require(player.get(ANDROID + 'screenOrientation') not in {'landscape', 'sensorLandscape', 'reverseLandscape'}, 'Keep the iframe usable in portrait as well as landscape')
 sharing = (ROOT / 'app/src/main/java/ao/mirevia/ui/components/MediaShareSheet.kt').read_text()
 require('Intent.ACTION_SEND' in sharing and '"text/plain"' in sharing, 'Share public text through the Android chooser only')
@@ -84,6 +108,9 @@ require('Build.VERSION.SDK_INT >= 28' in identity and 'PackageManager.GET_SIGNAT
 wrapper = (ROOT / 'app/src/main/java/ao/mirevia/playback/EmbedPage.kt').read_text()
 require('<iframe src=' in wrapper and 'Content-Security-Policy' in wrapper, 'A real iframe with CSP is required')
 require('<script' not in wrapper and '<video' not in wrapper, 'No script injection or custom video element')
+require('IframeRequestPolicy.LOCAL_DOCUMENT_URL' in wrapper and 'frame-src ${IframeRequestPolicy.FRAME_CSP_SOURCES};' in wrapper, 'Wrapper origin/CSP must match the consented resource policy')
+require('FRAME_CSP_SOURCES = "https://*:443"' in request_policy and 'require(policy.isValidSource(source))' in wrapper, 'Allow HTTPS internal frames in the app CSP, not arbitrary initial sources')
+
 provider = (ROOT / 'core/src/main/kotlin/ao/mirevia/core/playback/EmbedMoviesUrlBuilder.kt').read_text()
 require('DOCUMENTED_HOST = "myembed.biz"' in provider, 'Reconfirm provider documentation before changing the host')
 strings = {node.get('name'): node.text for node in ET.parse(ROOT / 'app/src/main/res/values/strings.xml').getroot()}
@@ -125,7 +152,8 @@ require(sdk_setup_count >= 3, 'Missing Android SDK setup in CI templates')
 print(f'Android SDK setup: {sdk_setup_count} steps explicitly avoid the removed legacy tools package.')
 print(f'Source checks: {len(sources)} production Kotlin files; XML, TOML, manifest, iframe and security invariants OK.')
 print('Theme compatibility: windowLightNavigationBar only in values-v27, with a base fallback for API 24-26.')
-print('Iframe diagnostics/sharing: typed origin-only blocks, exact approved host set, Safe Browsing, text-only chooser and API 24 identity fallback present.')
+print('Iframe: exact initial-source/share hosts; consent-versioned HTTPS resources/frames without a per-host list; fixed main document and shared worker gate.')
+print('Diagnostics/sharing: typed origin-only blocks, Safe Browsing, text-only chooser and API 24 identity fallback present.')
 print('Reported Kotlin regressions: player-specific immersive helper and named search onClick present.')
 print('Android 7.0 configuration: minSdk 24, core library desugaring and API 24/35 test matrix present.')
 print('Personal APK template: manual-only, embedded-token build flags and signature check present.')

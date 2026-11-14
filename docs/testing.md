@@ -1,23 +1,24 @@
 # Testes e validação
 
-## Resultados nesta sessão (14-11-2026)
+## Resultados da revisão 0.2.1 (14-11-2026)
 
 | Verificação | Resultado |
 | --- | --- |
 | Compilação Kotlin JVM de `:core` e `EmbedPage` | Executada com Kotlin 2.1.20 e Java 17 |
-| JUnit: domínio, URLs, fornecedor, filtros, wrapper, diagnóstico e partilha | **37 testes passaram** nesta revisão, compilados contra o código real de `:core` e `EmbedPage`, sem rede de catálogo/player |
-| Parser PSI Kotlin, incluindo testes Android/JVM, previews e scripts Gradle | **81 ficheiros sem erros de sintaxe** nesta revisão; não resolve tipos/dependências Android |
-| `python3 scripts/verify_source.py` | Passou: XML, TOML, manifesto, permissões, invariantes do iframe/WebView, checksums, templates e qualificação API 27 do tema sem duplicação em API 26 |
-| Workflow pessoal e dois templates em `ci/` | YAML analisado; scripts passaram `bash -n`; os quatro setups Android pedem explicitamente `platform-tools`, sem `tools` legado; matriz API 24/35 conferida |
+| JUnit: domínio, URLs, fornecedor, filtros, wrapper, diagnóstico e partilha | **47 testes passaram** nesta revisão, compilados contra o código real de `:core` e `EmbedPage`, sem rede de catálogo/player |
+| Parser PSI Kotlin, incluindo testes Android/JVM, previews e scripts Gradle | **86 ficheiros sem erros de sintaxe** nesta revisão; não resolve tipos/dependências Android |
+| `python3 scripts/verify_source.py` | Passou: 58 fontes de produção, XML/TOML/manifesto, fonte inicial exacta, política HTTPS separada para recursos/frames/workers, CSP e revisão de consentimento, restrições WebView, checksums/templates e tema API 27 |
+| Workflow pessoal e dois templates em `ci/` | YAML e `bash -n` verificados na revisão 0.2.0; ficheiros inalterados em 0.2.1. O verificador voltou a conferir os quatro setups com `platform-tools` e a matriz API 24/35 |
 | Gates de minSdk e secret | Verificados anteriormente com dados simulados, sem APK ou credencial real |
 | Actions: preparação Android SDK | A execução `43613957749` passou setup Java/Android/Gradle e instalação SDK após a configuração explícita de pacotes |
 | Actions: Kotlin Android | A execução `43613957749` teve as falhas de `Activity.setImmersive` e `MediaSearchRow`; num log posterior fornecido pelo proprietário, a compilação Kotlin e as tarefas de unitários avançaram até ao lint |
-| Actions: lint Android (histórico) | O log anterior falhou em `:app:lintDebug` com um erro `NewApi` em API 26; o PR #4 removeu a cópia antiga. O proprietário reportou instalação posterior, mas os relatórios dessa build não foram fornecidos; a revisão 0.2.0 continua sem lint Android local |
-| `./gradlew :core:test :app:assembleDebug` | **Bloqueado antes da compilação**: SSLHandshakeException/EOF ao obter a distribuição Gradle no ambiente com rede restrita |
+| Actions: lint Android (histórico) | O log anterior falhou em `:app:lintDebug` com um erro `NewApi` em API 26; o PR #4 removeu a cópia antiga. O proprietário reportou instalação posterior, mas os relatórios dessa build não foram fornecidos; as revisões 0.2.0 e 0.2.1 continuam sem lint Android local |
+| Gradle Android | Tentativa histórica de `:core:test :app:assembleDebug` bloqueada antes da compilação por SSLHandshakeException/EOF ao obter Gradle. Não voltou a ser executada em 0.2.1: SDK/emulador e acesso normal aos repositórios continuam ausentes |
 | Android SDK / emulador | Não disponíveis neste ambiente; JDK 17/compilador Kotlin temporários preparados apenas para as verificações JVM |
-| Regressões de segurança simuladas | **6 casos rejeitados** pelo verificador: debugging remoto, Safe Browsing desligado, callback bruto, hosts extra, partilha de ficheiro e ausência do fallback API 24 |
+| Regressões de segurança simuladas | **14 mutações em memória rejeitadas** pelo verificador: seis protecções anteriores e oito regressões de main frame, HTTPS, gate de recursos/workers, consentimento/revogação/definições e CSP. Nenhum ficheiro do projecto foi modificado pelas mutações |
 | `DetailsViewModelTest` | 8 testes novos escritos para Gradle; ainda não executados aqui |
-| Novos testes instrumentados | 7 casos escritos (episódios/selector, diagnóstico, partilha de texto e identidade); ainda não executados aqui |
+| Instrumentação escrita em 0.2.0 | 7 casos (episódios/selector, diagnóstico, partilha de texto e identidade), ainda não executados aqui |
+| Instrumentação nova em 0.2.1 | **16 casos** escritos: seis adicionais para callbacks WebView/workers sem rede, cinco DataStore de renovação/revogação/falha e cinco do diálogo comum de consentimento; **não executados** |
 | Previews Compose | 2 previews fictícios preparados para Android Studio, incluindo fonte a 2×; não renderizados/inspeccionados num dispositivo aqui |
 | Contraste de tokens do tema | Cálculo sRGB: corpo/superfície 16,45:1; secundário/superfície 7,76:1; acento/fundo 7,53:1; texto de botão 16,50:1. Não é uma auditoria de todas as imagens/estados/ecrãs |
 | Instalação de versão anterior | Reportada pelo proprietário; sem APK, log de build, API do dispositivo ou assinatura fornecidos |
@@ -28,7 +29,7 @@
 
 A verificação PSI é de **sintaxe**, não resolve dependências nem prova compatibilidade das APIs Android. Os resultados JVM também não comprovam que um iframe real reproduz um título. O número de ficheiros pode crescer com alterações; executar novamente os comandos abaixo.
 
-Foram usadas ferramentas JVM temporárias em `.cache/validation-tools/`, ignoradas pelo Git e fora do patch: Java/javac 17.0.8 e compilador Kotlin 2.1.20. Os arquivos npm usados apenas como distribuição foram conferidos pelo seu digest de integridade antes da extracção; não foram adicionados ao projecto nem executados scripts npm. JUnit foi compilado das fontes oficiais `junit-team/junit4`, tag `r4.13.2` (o banner dessa fonte identifica-se como `4.13.2-SNAPSHOT`), com Hamcrest incluído nessa fonte. Os 37 testes usam o código real de domínio/wrapper, não uma reimplementação das suas regras. A execução isolada usa coroutines do compilador; não substitui a resolução das dependências fixadas pelo Gradle. Os ficheiros Kotlin novos/alterados foram formatados com ktfmt 0.59.0 no estilo Kotlin (4 espaços).
+Foram usadas ferramentas JVM temporárias em `.cache/validation-tools/`, ignoradas pelo Git e fora do patch: Java/javac 17.0.8 e compilador Kotlin 2.1.20. Os arquivos npm usados apenas como distribuição foram conferidos pelo seu digest de integridade antes da extracção; não foram adicionados ao projecto nem executados scripts npm. JUnit foi compilado das fontes oficiais `junit-team/junit4`, tag `r4.13.2` (o banner dessa fonte identifica-se como `4.13.2-SNAPSHOT`), com Hamcrest incluído nessa fonte. Os 47 testes usam o código real de domínio/wrapper, não uma reimplementação das suas regras. A execução isolada usa coroutines do compilador; não substitui a resolução das dependências fixadas pelo Gradle. Os ficheiros Kotlin novos/alterados foram formatados com ktfmt 0.59.0 no estilo Kotlin (4 espaços).
 
 ## Execução normal, com Android Studio/SDK
 
@@ -73,7 +74,7 @@ Para validar as correcções, publicar os ficheiros Kotlin actualizados na branc
 
 O log posterior do proprietário chegou a `:app:lintDebug` e reportou `android:windowLightNavigationBar` em `values-v26/styles.xml`. Esse atributo XML exige API 27. Na revisão anterior à correcção do PR #4 existiam **as duas cópias**, em `values-v26` e `values-v27`; criar a pasta nova sem eliminar a definição antiga não resolvia o erro.
 
-Foi removido apenas `values-v26/styles.xml`, depois de confirmar que era idêntico ao ficheiro API 27. Naquela correcção, o conteúdo de `values-v27/styles.xml`, o tema base e o Gradle foram preservados. Nesta revisão 0.2.0 só se actualizam as cores base e a versão da app; a qualificação API 27, a herança e o mínimo API 24 permanecem. Não se aumentou `minSdk`, não se desactivou lint/NewApi e não se criou uma baseline para ocultar a falha.
+Foi removido apenas `values-v26/styles.xml`, depois de confirmar que era idêntico ao ficheiro API 27. Naquela correcção, o conteúdo de `values-v27/styles.xml`, o tema base e o Gradle foram preservados. A revisão 0.2.0 actualizou as cores base e a versão; 0.2.1 não altera o tema. A qualificação API 27, a herança e o mínimo API 24 permanecem. Não se aumentou `minSdk`, não se desactivou lint/NewApi e não se criou uma baseline para ocultar a falha.
 
 O verificador de fontes exige agora uma única definição do atributo em `values-v27`, qualificação mínima API 27 e herança da base comum para API 24–26. Antes da remoção, o novo check rejeitou a cópia API 26 existente; depois da remoção passou. É uma verificação de regressão deste caso, não uma análise completa das APIs Android.
 
@@ -123,6 +124,7 @@ java -cp ".tools/core-tests.jar:$CP:$KOTLIN_HOME/lib/kotlin-stdlib.jar" \
   ao.mirevia.core.model.DiscoverFiltersTest \
   ao.mirevia.core.model.MediaSharingTest \
   ao.mirevia.core.playback.PlaybackBlockTest \
+  ao.mirevia.core.playback.IframeRequestPolicyTest \
   ao.mirevia.playback.EmbedPageTest
 ```
 
@@ -147,9 +149,10 @@ Separador de classpath no Windows: `;` em vez de `:`.
 - Recusa de identificadores demo e de saídas inválidas de outro fornecedor.
 - Host exacto, credenciais no URL, portas, trailing dot, subdomínios, esquemas perigosos, barras codificadas, query/fragmentos e domínios parecidos.
 - Filtros movie/TV, chave composta de dados e não colisão demo/TMDB.
-- Wrapper real com iframe/CSP, sem scripts, bridges ou elemento video; exemplos documentados 969681, tt22084616 e 30984/1/1 intactos e atributos responsivos.
-- Diagnóstico descarta caminhos/queries/fragmentos/credenciais, normaliza apenas host/esquema e não aprova origens. Casos de URL malformado, controlo, tamanho excessivo, esquemas perigosos, portas e domínios parecidos.
-- Partilha de título TMDB e link de iframe: origem demo recusada, fontes hostis/queries/streams recusados, correspondência de tipo/ID e selecção de episódio, aviso iframe-only e assunto limitado sem caracteres de controlo.
+- Wrapper real com iframe/CSP `frame-src https://*:443`, sem scripts, bridges ou elemento video; exemplos documentados 969681, tt22084616 e 30984/1/1 intactos e atributos responsivos. `src` arbitrário continua recusado.
+- `IframeRequestPolicy`: Cloudflare Insights e hosts HTTPS não listados aceites como recursos/frames, nunca main frame ou fonte inicial; wrapper local reservado; rejeição de HTTP/esquemas perigosos, portas não padrão, credenciais e URLs malformados. Aprovação legada/desconhecida/futura/revogada inválida.
+- Diagnóstico descarta caminhos/queries/fragmentos/credenciais, normaliza apenas host/esquema e não acrescenta fontes iniciais; distingue a origem inicial do alcance HTTPS dos recursos. Casos de URL malformado, controlo, tamanho excessivo, esquemas perigosos, portas e domínios parecidos.
+- Partilha de título TMDB e link de iframe: origem demo recusada, fontes hostis/queries/streams recusados, correspondência de tipo/ID e selecção de episódio, aviso iframe-only e assunto limitado sem caracteres de controlo. Um host permitido como recurso (incluindo Cloudflare) não pode ser partilhado como fonte de reprodução.
 
 ### Dados e apresentação (para Gradle)
 
@@ -163,7 +166,9 @@ Separador de classpath no Windows: `;` em vez de `:`.
 
 - Room: flags independentes, IDs isolados, histórico sem progresso falso, vistos por episódio e pesquisas limitadas/deduplicadas.
 - Compose: cinco separadores, detalhe de demonstração com reprodução desactivada, favorito; linha de pesquisa com `onClick` nomeado, subtítulo e conteúdo final opcionais.
-- WebView: restrições de settings, sem contactar o fornecedor (`autoLoad=false` no teste).
+- WebView: restrições de settings e seis testes adicionais dos clientes efectivamente ligados ao WebView/workers, invocados directamente sem carregar URLs (`autoLoad=false`). Verificam HTTPS não listado, wrapper local, recusa de main frame externo, HTTP e sessão libertada; não testam tráfego real nem todos os transportes do motor. Os seis testes requerem suporte de workers actualizado; as settings e os testes puros não dependem desse getter WebView API 26.
+- DataStore (5 casos): ficheiros isolados sem preferências reais, aprovação legada sem revisão invalidada, outras preferências preservadas, aceitação/revogação atómicas, revisão desconhecida/futura recusada, reset e IO a falhar fechado. O construtor interno recebe o mesmo tipo DataStore usado em produção; não altera a persistência real.
+- Diálogo comum (5 casos): divulgação de terceiros e ausência de aceitação automática, cancelar/aceitar explícitos, leitura falhada desactiva aceitar, aviso de escrita falhada, scroll e botões com fonte a 2×. Não cria WebView nem contacta o fornecedor.
 - Android 7.0+: mínimo de instalação API 24 e APIs de datas `java.time` no dispositivo, via desugaring.
 - EpisodeComponents (4 testes novos): acções explícitas, fonte ausente, sinopse/acções com fonte a 2× e pesquisa/selecção de temporada, sem imagens ou pedidos de rede.
 - PlaybackBlockPanel: só apresenta a origem, sem caminho/token; cópia/partilha/repetição apenas por gesto.
@@ -177,8 +182,8 @@ Separador de classpath no Windows: `;` em vez de `:`.
 3. API configurada: conteúdos reais, ausência de resultados, 401/403/404/429, ligação lenta e offline, cancelamento ao escrever/voltar.
 4. Favoritos/lista/vistos persistentes após reinício; remoção, limpeza e pesquisa recente.
 5. Séries: só a temporada seleccionada carrega episódios; pesquisar/trocar/revisitar temporadas, cancelar pedidos lentos, tratar vazio/erro/repetição, still ausente e especiais; seleccionar episódio real e verificar identificadores.
-6. Iframe autorizado: consentimento, recusa, revogação, carregamento e mensagens do fornecedor; nunca inserir uma URL de vídeo.
-7. Origem desconhecida, popup, esquema perigoso, TLS inválido ou dependência não aprovada: bloquear e mostrar apenas diagnóstico de origem, sem fallback ou autorização automática. Copiar/partilhar não deve conter paths, queries, fragmentos, credenciais ou histórico.
+6. Actualizar uma instalação antiga com `external_player_consent=true` e sem revisão: não contactar o fornecedor até nova confirmação. Testar aceitar/cancelar/revogar no player e nas definições, falhas de preferências e biblioteca preservada. Nunca inserir uma URL de vídeo.
+7. Na sessão consentida, domínios HTTPS não listados (incluindo Cloudflare, frames/redireccionamentos e workers) não podem ser recusados só por hostname. HTTP/esquema perigoso/porta alternativa, credenciais, escape do main frame, popup, download, TLS inválido/Safe Browsing continuam restringidos. No bloqueio, mostrar só origem e as duas políticas; copiar/partilhar sem paths, queries, fragmentos, credenciais ou histórico. Sem fallback/extracção.
 8. CSP/X-Frame-Options: não remover headers; testar o estado de falha e a acção manual “não carregou”.
 9. Fullscreen normal do fornecedor, expansão da superfície, botão Voltar, ida ao segundo plano e destruição/libertação do WebView.
 10. PiP, progresso, duração e fim do vídeo: **nenhum controlo nativo ou valor fictício** enquanto não houver API oficial validada.
@@ -186,8 +191,10 @@ Separador de classpath no Windows: `;` em vez de `:`.
 12. TalkBack, descrições de ícones, foco, contraste, teclado, touch targets, listas longas e uso de memória/bateria.
 13. Rever [security.md](security.md), em particular limites de WebView como controlo de rede. Um teste de navegação não comprova isolamento absoluto de sub-recursos.
 
-## Revisão 0.2.0: limites específicos
+## Histórico 0.2.0 e limites actuais
 
-O utilizador confirmou apenas um erro genérico de origem e que o alerta é do Google Play Protect. O domínio adicional, o texto integral do alerta, o APK sinalizado e a execução de build não foram fornecidos. A allowlist não mudou. Não foi executada uma sessão real de reprodução, uma análise de APK ou um recurso ao Google. Não é declarado que o alerta é um falso positivo, que a reprodução já funciona ou que a UI foi aprovada visualmente no dispositivo.
+Na revisão 0.2.0 só havia relato de erro genérico e de Google Play Protect; a allowlist não tinha mudado. Depois, o proprietário forneceu `RESOURCE`/`https`/`static.cloudflareinsights.com` sem porta e escolheu recursos/frames HTTPS sem lista por hostname. Essa origem e a decisão já são conhecidas. A revisão 0.2.1 muda a política dos pedidos/CSP próprios e renova o consentimento; a fonte inicial/partilha mantém `myembed.biz` exacto.
+
+Ainda não há texto/captura integral do Play Protect, APK sinalizado ou nova build identificada. Não foi executada uma sessão real de reprodução, análise de APK ou recurso ao Google. Não é declarado que o alerta é um falso positivo, que a reprodução já funciona ou que a UI foi aprovada visualmente no dispositivo. A aceitação de um recurso analytics não equivale a resolver vídeo, direitos ou segurança.
 
 Além dos testes acima, validar partilha/regresso ao player, revogação de consentimento, postura retrato/paisagem, fullscreen/back, selector com teclado, fontes grandes e navegação das cinco áreas. A folha de identidade só apresenta metadados locais: comparar com o certificado de uma build conhecida e não confundir com certificação de segurança. Ver [player-troubleshooting.md](player-troubleshooting.md).

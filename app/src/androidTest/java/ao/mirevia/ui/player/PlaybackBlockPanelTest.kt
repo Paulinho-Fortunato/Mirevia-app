@@ -35,8 +35,11 @@ class PlaybackBlockPanelTest {
                 )
             }
         }
-        compose.onNodeWithText("Domínio bloqueado: cdn.example").assertExists()
+        compose.onNodeWithText("Domínio observado: cdn.example").assertExists()
         compose.onNodeWithText("Porta explícita: 8443").assertExists()
+        compose.onNodeWithText("Iframe inicial autorizado: myembed.biz").assertExists()
+        compose.onNodeWithText(IframeRequestPolicy.RESOURCE_DESCRIPTION).assertExists()
+        compose.onNodeWithText("Domínios autorizados:", substring = true).assertDoesNotExist()
         compose.onNodeWithText("secret-token", substring = true).assertDoesNotExist()
         compose.onNodeWithText("secret-path", substring = true).assertDoesNotExist()
         compose.runOnIdle { assertEquals(listOf(0, 0, 0), listOf(copies, shares, retries)) }

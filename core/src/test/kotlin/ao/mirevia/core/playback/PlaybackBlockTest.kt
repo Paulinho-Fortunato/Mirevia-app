@@ -20,7 +20,9 @@ class PlaybackBlockTest {
         listOf("user", "secret", "/private", "m3u8", "private-token", "session").forEach {
             assertFalse("Leaked $it", report.contains(it))
         }
-        assertTrue(report.contains("myembed.biz"))
+        assertTrue(report.contains("Iframe inicial autorizado: myembed.biz"))
+        assertTrue(report.contains(IframeRequestPolicy.RESOURCE_DESCRIPTION))
+        assertFalse(report.contains("Domínios autorizados:"))
         assertFalse(policy.isAllowedNavigation("https://cdn.example"))
     }
 

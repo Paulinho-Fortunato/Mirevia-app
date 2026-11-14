@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import ao.mirevia.core.playback.EmbedUrlPolicy
+import ao.mirevia.core.playback.IframeRequestPolicy
 import ao.mirevia.core.playback.PlaybackBlock
 import ao.mirevia.core.playback.PlaybackBlockKind
 import ao.mirevia.ui.components.StatusPanel
@@ -31,9 +32,9 @@ fun PlaybackBlockPanel(
     val message =
         when (block?.kind) {
             PlaybackBlockKind.RESOURCE ->
-                "O iframe pediu um recurso fora da lista de origens HTTPS autorizadas. A sessão foi interrompida; o recurso não foi autorizado automaticamente."
+                "O pedido não cumpre a política de recursos do iframe. São permitidos domínios remotos HTTPS na porta 443, mas não HTTP, credenciais no endereço, URLs malformados ou a origem reservada à página local."
             PlaybackBlockKind.NAVIGATION ->
-                "Foi bloqueada uma navegação. A página deve permanecer no iframe autorizado, sem abrir outras origens ou esquemas."
+                "Foi bloqueada uma navegação. A página principal tem de permanecer no wrapper local; os frames internos aceitam HTTPS na porta 443, sem credenciais no endereço."
             PlaybackBlockKind.NEW_WINDOW ->
                 "O player pediu uma janela externa que não pode ser validada em segurança. A sessão foi interrompida, sem alterar os anúncios ou o conteúdo do fornecedor."
             PlaybackBlockKind.DOWNLOAD ->
@@ -61,7 +62,7 @@ fun PlaybackBlockPanel(
                 SelectionContainer {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
-                            "Domínio bloqueado: ${block?.host ?: "não identificado"}",
+                            "Domínio observado: ${block?.host ?: "não identificado"}",
                             fontFamily = FontFamily.Monospace,
                             style = MaterialTheme.typography.bodyMedium,
                         )
@@ -78,7 +79,7 @@ fun PlaybackBlockPanel(
                             )
                         }
                         Text(
-                            "Domínios autorizados: ${policy.allowedHosts.sorted().joinToString(", ")}",
+                            "Iframe inicial autorizado: ${policy.allowedHosts.sorted().joinToString(", ")}",
                             color = Muted,
                             style = MaterialTheme.typography.bodySmall,
                         )
@@ -89,15 +90,16 @@ fun PlaybackBlockPanel(
                     color = Muted,
                     style = MaterialTheme.typography.bodySmall,
                 )
-                if (
-                    block?.kind == PlaybackBlockKind.RESOURCE ||
-                        block?.kind == PlaybackBlockKind.NAVIGATION
+                Text(
+                    IframeRequestPolicy.RESOURCE_DESCRIPTION,
+                    color = Muted,
+                    style = MaterialTheme.typography.bodySmall,
                 )
-                    Text(
-                        "Confirma este domínio na documentação ou com o fornecedor antes de alterar a lista permitida. Repetir não concede autorização.",
-                        color = Muted,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
+                Text(
+                    "Um hostname não listado já não causa bloqueio por si só. HTTPS não certifica a origem como segura; o Safe Browsing e as outras protecções podem interromper a sessão.",
+                    color = Muted,
+                    style = MaterialTheme.typography.bodySmall,
+                )
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton(
                         onClick = onCopy,

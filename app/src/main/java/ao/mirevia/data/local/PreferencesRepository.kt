@@ -1,9 +1,13 @@
 package ao.mirevia.data.local
 
 import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import ao.mirevia.core.playback.IframeRequestPolicy
 import java.io.IOException
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
@@ -18,16 +22,21 @@ data class UserPreferences(
     val storageError: Boolean = false,
 )
 
-class PreferencesRepository(context: Context) {
-    private val store = context.applicationContext.mireviaPreferences
+class PreferencesRepository internal constructor(private val store: DataStore<Preferences>) {
+    constructor(context: Context) : this(context.applicationContext.mireviaPreferences)
+
     val preferences =
         store.data
             .map {
                 UserPreferences(
-                    it[REDUCE_MOTION] ?: false,
-                    it[SAVE_HISTORY] ?: true,
-                    it[EXTERNAL_BROWSER] ?: false,
-                    it[PLAYER_CONSENT] ?: false,
+                    reduceMotion = it[REDUCE_MOTION] ?: false,
+                    saveHistory = it[SAVE_HISTORY] ?: true,
+                    externalBrowser = it[EXTERNAL_BROWSER] ?: false,
+                    externalPlayerConsent =
+                        IframeRequestPolicy.hasCurrentConsent(
+                            it[PLAYER_CONSENT] == true,
+                            it[PLAYER_CONSENT_REVISION],
+                        ),
                 )
             }
             .catch { error ->
@@ -49,7 +58,11 @@ class PreferencesRepository(context: Context) {
     }
 
     suspend fun setPlayerConsent(value: Boolean) {
-        store.edit { it[PLAYER_CONSENT] = value }
+        store.edit {
+            it[PLAYER_CONSENT] = value
+            if (value) it[PLAYER_CONSENT_REVISION] = IframeRequestPolicy.CONSENT_REVISION
+            else it.remove(PLAYER_CONSENT_REVISION)
+        }
     }
 
     suspend fun reset() {
@@ -61,5 +74,6 @@ class PreferencesRepository(context: Context) {
         val SAVE_HISTORY = booleanPreferencesKey("save_history")
         val EXTERNAL_BROWSER = booleanPreferencesKey("external_browser")
         val PLAYER_CONSENT = booleanPreferencesKey("external_player_consent")
+        val PLAYER_CONSENT_REVISION = intPreferencesKey("external_player_consent_revision")
     }
 }
